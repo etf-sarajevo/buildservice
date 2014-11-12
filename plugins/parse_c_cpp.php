@@ -134,11 +134,9 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 			$i = skip_ident_chars($sourcecode, $i);
 			$define_name = substr($sourcecode, $define_begin, $i-$define_begin);
 			array_push($symbols, $define_name);
-print "Define $define_name filename $file begin $define_begin end $i\n";
 			
 			// Skip to newline
 			$i = skip_to_newline($sourcecode, $i);
-print "Skip to newline to $i\n";
 			continue;
 		}
 		
@@ -171,12 +169,10 @@ print "Skip to newline to $i\n";
 				continue;
 			}
 			
-print "Class $class_name filename $file begin $class_begin end $i\n";
 			array_push($symbols, $class_name);
 			
 			// Skip to end of block
 			$i = find_matching($sourcecode, $curly_pos);
-print "Skip to curly to $i\n";
 			if ($i==strlen($sourcecode)) {
 				if ($conf_verbosity>1) print "extract_global_symbols(): syntax error in $file:$curly_pos: missing closed curly\n";
 				break;
@@ -187,7 +183,6 @@ print "Skip to curly to $i\n";
 		if ($sourcecode[$i] == "#" || substr($sourcecode, $i, 2) == "//") {
 			// Skip to newline
 			$i = skip_to_newline($sourcecode, $i);
-print "Skip #include or comment to $i\n";
 			continue;
 		}
 		
@@ -219,7 +214,6 @@ print "Skip #include or comment to $i\n";
 			if ($i<strlen($sourcecode) && $sourcecode[$i] == "<") {
 				$i = skip_template($sourcecode, $i);
 				if ($i === false) break;
-print "Skip template to $i\n";
 			} else {
 				// No template after "template" keyword? syntax error
 				if ($conf_verbosity>1) print "extract_global_symbols(): syntax error in $file:$i: no template after 'template' keyword: ".$sourcecode[$i]."\n";
@@ -280,9 +274,7 @@ print "Skip template to $i\n";
 			
 				if ($sourcecode[$i] == "<" || $sourcecode[$i] == ":") {
 					// This is a class method
-print "Skipping method of class $ident_name\n";
 				} else {
-print "Ident $ident_name filename $file begin $ident_begin end $i\n";
 					array_push($symbols, $ident_name);
 				}
 			} else {
@@ -290,12 +282,8 @@ print "Ident $ident_name filename $file begin $ident_begin end $i\n";
 				// FIXME also external constructor and destructor, but not relevant right now
 				$ident_name = substr($sourcecode, $start_type, $end_type-$start_type);
 				if ($start_ns == -1) {
-print "Typeless ident $ident_name filename $file begin $start_type end $end_type\n";
 					array_push($symbols, $ident_name);
-				} else {
-print "Skipping typeless method $ident_name of class ".substr($sourcecode, $start_ns, $end_ns-$start_ns)."\n";
 				}
-//print "Skipping non-ident\n";
 			}
 			
 			// skip to semicolon or end of block, whichever comes first
@@ -316,7 +304,6 @@ print "Skipping typeless method $ident_name of class ".substr($sourcecode, $star
 				if ($conf_verbosity>1) print "extract_global_symbols(): syntax error in $file:$curly_pos: missing closed curly\n";
 				break;
 			}
-print "Skip to after ident to $i (sc_pos $sc_pos curly pos $curly_pos)\n";
 		}
 	}
 
