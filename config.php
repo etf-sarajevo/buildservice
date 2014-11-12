@@ -93,6 +93,16 @@ $conf_compilers = array(
 		"output_switch" => " ", // for javac we must rely on parameter order to specify output :(
 		"features" => array(), 
 	),
+
+	// PYTHON
+	array(
+		"name" => "python3",
+		"language" => " ",
+		"path" => "/usr/bin/python3",
+		"local_opts" => "",
+		"output_switch" => " ", 
+		"features" => array(), 
+	),
 );
 
 
@@ -136,6 +146,7 @@ $conf_extensions = array(
 	"C"    => array( ".c", ".h" ),
 	"C++"  => array( ".cpp", ".h", ".cxx", ".hxx" ),
 	"Java" => array( ".java" ),
+	"Python" => array( ".py" ),
 );
 
 
