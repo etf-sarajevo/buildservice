@@ -431,8 +431,14 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	$test_filename = "bs_test_".$test['id'];
 	if ($task['language'] == "C") $test_filename .= ".c";
 	if ($task['language'] == "C++") $test_filename .= ".cpp";
-	while (in_array(instance_path($instance) . "/" . $test_filename, $filelist)) $test_filename = "_".$test_filename;
-	$test_filename = instance_path($instance) . "/" . $test_filename;
+
+	$test_path = instance_path($instance);
+	if ($task['language'] == "C" || $task['language'] == "C++")
+		// Locate test file in the same path that mainfile used to be
+		$test_path = dirname($main_filename);
+
+	while (in_array($test_path . "/" . $test_filename, $filelist)) $test_filename = "_".$test_filename;
+	$test_filename = $test_path . "/" . $test_filename;
 	
 	file_put_contents($test_filename, $main_source_code);
 
