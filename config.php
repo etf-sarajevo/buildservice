@@ -66,9 +66,10 @@ $conf_compilers = array(
 	array(
 		"name" => "gcc",
 		"language" => "C",
-		"path" => "/usr/bin/gcc",
-		"local_opts" => "", // add options that need to be passed every time e.g. -rpath
-		"output_switch" => "-o ",
+		"compiler_path" => "/usr/bin/gcc",
+		"executor_path" => "", // Compiler generates executables
+		"cmd_line" => "COMPILER_PATH -o OUTPUT_FILE SOURCE_FILES OPTIONS",
+		"exe_line" => "OUTPUT_FILE",
 		"features" => array(), // add features supported by this compiler 
 	),
 
@@ -77,10 +78,11 @@ $conf_compilers = array(
 		"name" => "g++",
 		"language" => "C++",
 		//"path" => "/opt/gcc-4.8.2/bin/g++",
-		"path" => "/usr/bin/g++",
-		//"local_opts" => "-Wl,-rpath /opt/gcc-4.8.2/lib64",
-		"local_opts" => "", 
-		"output_switch" => "-o ",
+		"compiler_path" => "/usr/bin/g++",
+		"executor_path" => "", // Compiler generates executables
+		//"cmd_line" => "COMPILER_PATH -o OUTPUT_FILE SOURCE_FILES -Wl,-rpath /opt/gcc-4.8.2/lib64 OPTIONS",
+		"cmd_line" => "COMPILER_PATH -o OUTPUT_FILE SOURCE_FILES OPTIONS",
+		"exe_line" => "OUTPUT_FILE",
 		"features" => array( "c++11" ),
 	),
 
@@ -88,20 +90,22 @@ $conf_compilers = array(
 	array(
 		"name" => "jdk",
 		"language" => "Java",
-		"path" => "javac",
-		"local_opts" => "",
-		"output_switch" => " ", // for javac we must rely on parameter order to specify output :(
+		"compiler_path" => "javac",
+		"executor_path" => "java",
+		"cmd_line" => "COMPILER_PATH OPTIONS SOURCE_FILES",
+		"exe_line" => "EXECUTOR_PATH OUTPUT_FILE", // FIXME with java output files are always named Foo.class, so this needs to be hardcoded
 		"features" => array(), 
 	),
 
 	// PYTHON
 	array(
-		"name" => "python",
+		"name" => "python3",
 		"language" => "Python",
-		"path" => "/usr/bin/python3",
-		"local_opts" => "",
-		"output_switch" => " ", 
-		"features" => array(), 
+		"compiler_path" => "/usr/bin/python3",
+		"executor_path" => "/usr/bin/python3",
+		"cmd_line" => "COMPILER_PATH -m py_compile OPTIONS SOURCE_FILES",
+		"exe_line" => "EXECUTOR_PATH OPTIONS SOURCE_FILES",
+		"features" => array( "python3" ), // Python version 3 is used
 	),
 );
 

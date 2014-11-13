@@ -86,6 +86,24 @@ function find_sources($task, $instance)
 	return $filelist;
 }
 
+
+// Replace various placeholders in compiler command line with their correct values
+function parse_compiler_line($cmd, $compiler, $exe_file, $options, $filelist)
+{
+	// Create escaped path to source file list
+	$escpath = "";
+	$escape_pairs = array(" " => "\ ", "(" => "\(", ")" => "\)");
+	foreach ($filelist as $file)
+		$escpath .= strtr($file, $escape_pairs) . " ";
+
+	$cmd = str_replace("COMPILER_PATH", $compiler['compiler_path'], $cmd);
+	$cmd = str_replace("EXECUTOR_PATH", $compiler['executor_path'], $cmd);
+	$cmd = str_replace("OPTIONS", $options, $cmd);
+	$cmd = str_replace("SOURCE_FILES", $escpath, $cmd);
+	$cmd = str_replace("OUTPUT_FILE", $exe_file, $cmd);
+	return $cmd;
+}
+
 // Perform compilation
 function do_compile($filelist, $exe_file, $compiler, $options, $instance)
 {
@@ -93,18 +111,12 @@ function do_compile($filelist, $exe_file, $compiler, $options, $instance)
 
 	if ($conf_verbosity>0) print "Compiling ".basename($exe_file)."...\n";
 	
-	// Create escaped path to compilable files
-	$escpath = "";
-	$escape_pairs = array(" " => "\ ", "(" => "\(", ")" => "\)");
-	foreach ($filelist as $file)
-		$escpath .= strtr($file, $escape_pairs) . " ";
-
 	$compile_result = array();
 	$compile_result['status'] = COMPILE_SUCCESS;
 	$output = array();
-
+	
 	// Do it!
-	$cmd = $compiler['path']." ".$compiler['local_opts']." ".$options." ".$compiler['output_switch'].$exe_file." ".$escpath." -lm 2>&1";
+	$cmd = parse_compiler_line($compiler['cmd_line'], $compiler, $exe_file, $options, $filelist);
 
 	$k = exec($cmd, $output, $return);
 
@@ -135,7 +147,7 @@ function do_compile($filelist, $exe_file, $compiler, $options, $instance)
 
 
 // Execute program with predefined input using profiler and debugger as neccessary
-function do_run($exe_file, $params, $instance)
+function do_run($filelist, $exe_file, $params, $compiler, $compiler_options, $instance)
 {
 	global $conf_max_program_output, $conf_verbosity;
 
@@ -156,8 +168,10 @@ function do_run($exe_file, $params, $instance)
 	$cwd = instance_path($instance);
 	$env = array();
 	
+	// Use compiler['exe_line'] as command line for execution
+	$cmd = parse_compiler_line($compiler['exe_line'], $compiler, $exe_file, $compiler_options, $filelist);
+
 	// Parse various execution params
-	$cmd = "$exe_file";
 	if (array_key_exists("timeout", $params) && $params['timeout'] > 0)
 		$cmd = "ulimit -t ".$params['timeout']."; $cmd";
 	if (array_key_exists("vmem", $params) && $params['vmem'] > 0)
@@ -178,7 +192,7 @@ function do_run($exe_file, $params, $instance)
 		fwrite($pipes[0], $params['stdin']);
 		fclose($pipes[0]);
 		
-		// stream_get_contents će se zaglaviti dok se program ne završi
+		// stream_get_contents will get stuck until program ends
 		$start_time = time();
 		$stdout = stream_get_contents($pipes[1], $conf_max_program_output+10);
 		$duration = time() - $start_time;
@@ -480,7 +494,7 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	}
 
 	// Execute test
-	$run_result = do_run($test_exe_file, $test['running_params'], $instance);
+	$run_result = do_run($filelist, $test_exe_file, $test['running_params'], $compiler, $task['compiler_options_debug'], $instance);
 	$test_result['run_result'] = $run_result;
 
 	if ($run_result['status'] === EXECUTION_TIMEOUT) {

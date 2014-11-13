@@ -160,7 +160,7 @@ function process_program($task, $compiler, $debugger, $profiler, $program_id) {
 
 	// Run
 	if ($task['run'] === "true") {
-		$run_result = do_run($exe_file, $task['running_params'], $instance);
+		$run_result = do_run($filelist, $exe_file, $task['running_params'], $compiler, $task['compiler_options'], $instance);
 
 		json_query( "setExecuteResult", array("program" => $program_id, "result" => json_encode($run_result)), "POST" );
 
