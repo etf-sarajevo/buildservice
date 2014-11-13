@@ -96,8 +96,8 @@ $conf_compilers = array(
 
 	// PYTHON
 	array(
-		"name" => "python3",
-		"language" => " ",
+		"name" => "python",
+		"language" => "Python",
 		"path" => "/usr/bin/python3",
 		"local_opts" => "",
 		"output_switch" => " ", 
