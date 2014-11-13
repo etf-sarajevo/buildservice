@@ -165,7 +165,7 @@ function process_program($task, $compiler, $debugger, $profiler, $program_id) {
 		json_query( "setExecuteResult", array("program" => $program_id, "result" => json_encode($run_result)), "POST" );
 
 		// Debug
-		if ($run_result['status'] == EXECUTION_CRASH && $debugger) {
+		if ($run_result['status'] == EXECUTION_CRASH && $task['debug'] === "true" && $debugger) {
 			// Recompile with debug compiler_options
 			$compile_result = do_compile($filelist, $debug_exe_file, $compiler, $task['compiler_options_debug'], $instance);
 			
@@ -179,7 +179,7 @@ function process_program($task, $compiler, $debugger, $profiler, $program_id) {
 		}
 		
 		// Profile
-		if ($run_result['status'] != EXECUTION_CRASH && $profiler) {
+		if ($run_result['status'] != EXECUTION_CRASH && $task['profile'] === "true" && $profiler) {
 			// Recompile with debug compiler_options
 			$compile_result = do_compile($filelist, $debug_exe_file, $compiler, $task['compiler_options_debug'], $instance);
 

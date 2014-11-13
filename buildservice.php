@@ -535,7 +535,7 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 			if ($conf_verbosity>0) print "- test ".$test['id']." failed - crash\n";
 
 		// Debug in case of crash
-		if ($debugger) {
+		if ($debugger && $task['debug'] === "true") {
 			$debug_result = do_debug($test_exe_file, $debugger, $run_result['core'], $filelist, $instance);
 		
 			// Adjust filenames and line numbers that were changed for the test
@@ -667,7 +667,7 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	} // if ($run_result['status'] === EXECUTION_CRASH) { ... } else {
 
 	// Profile
-	if ($profiler) {
+	if ($profiler && $task['profile'] === "true") {
 		$profile_result = do_profile($test_exe_file, $profiler, $filelist, $test['running_params'], $instance);
 		
 		// Adjust filenames and line numbers that were changed for the test
