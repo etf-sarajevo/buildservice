@@ -415,9 +415,20 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	
 	// Include files containing symbols we need
 	$includes_code = "";
-	foreach ($includes as $file) 
+	foreach ($includes as $file) {
 		if ($task['language'] == "C" || $task['language'] == "C++")
 			$includes_code .= "#include \"$file\"\n";
+		if ($task['language'] == "Python") {
+			$import_file = basename(preg_replace("/\.py$/", "", $file));
+			// Imported filenames must start with a letter in python
+			if (!ctype_alpha($import_file[0])) {
+				$import_file = "a".$import_file;
+				$new_file = dirname($file) . "/a" . basename($file);
+				rename ($file, $new_file);
+			}
+			$includes_code .= "from $import_file import *";
+		}
+	}
 	
 	// Also include stdin/stdout libraries cause they will surely be used in test
 	if ($task['language'] == "C")
@@ -429,8 +440,12 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	$test_code = "";
 	if ($task['language'] == "C")
 		$test_code .= "int main() {\nprintf(\"$start_string\");\n ".$test['code']."\n printf(\"$end_string\");\nreturn 0;\n}\n";
-	if ($task['language'] == "C++")
+	else if ($task['language'] == "C++")
 		$test_code .= "int main() {\ntry {\n std::cout<<\"$start_string\";\n ".$test['code']."\n std::cout<<\"$end_string\";\n } catch (...) {\n std::cout<<\"$except_string\";\n }\nreturn 0;\n}\n";
+	else if ($task['language'] == "Python")
+		$test_code .= "print(\"$start_string\")\n".$test['code']."\nprint(\"$end_string\")\n";
+	else
+		$test_code = $test['code'];
 
 	// Prevent cheating
 	$main_source_code = str_replace($start_string,  "====cheat_protection====", $main_source_code);
@@ -445,9 +460,10 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	$test_filename = "bs_test_".$test['id'];
 	if ($task['language'] == "C") $test_filename .= ".c";
 	if ($task['language'] == "C++") $test_filename .= ".cpp";
+	if ($task['language'] == "Python") $test_filename .= ".py";
 
 	$test_path = instance_path($instance);
-	if ($task['language'] == "C" || $task['language'] == "C++")
+	if ($task['language'] == "C" || $task['language'] == "C++" || $task['language'] == "Python")
 		// Locate test file in the same path that mainfile used to be
 		$test_path = dirname($main_filename);
 
@@ -461,6 +477,9 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 		for ($i=0; $i<count($filelist); $i++)
 			if ($filelist[$i] === $global_symbols['main'])
 				$filelist[$i] = $test_filename;
+	} else if ($task['language'] == "Python") {
+		// In python we execute just the test file and it includes everything else
+		$filelist = array($test_filename);
 	} else {
 		array_push($filelist, $test_filename);
 	}
@@ -477,6 +496,7 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	// number of lines added to main per language
 	if ($task['language'] == "C") $adjustment_data['test_code_pos'] += 2;
 	if ($task['language'] == "C++") $adjustment_data['test_code_pos'] += 3;
+	if ($task['language'] == "Python") $adjustment_data['test_code_pos'] += 1;
 
 
 
