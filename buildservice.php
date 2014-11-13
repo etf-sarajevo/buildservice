@@ -463,7 +463,7 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	if ($task['language'] == "Python") $test_filename .= ".py";
 
 	$test_path = instance_path($instance);
-	if ($task['language'] == "C" || $task['language'] == "C++" || $task['language'] == "Python")
+	if ($task['language'] == "C" || $task['language'] == "C++")
 		// Locate test file in the same path that mainfile used to be
 		$test_path = dirname($main_filename);
 
