@@ -117,6 +117,7 @@ function do_compile($filelist, $exe_file, $compiler, $options, $instance)
 	
 	// Do it!
 	$cmd = parse_compiler_line($compiler['cmd_line'], $compiler, $exe_file, $options, $filelist);
+	$cmd .= " 2>&1";
 
 	$k = exec($cmd, $output, $return);
 
