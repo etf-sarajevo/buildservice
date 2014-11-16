@@ -34,13 +34,7 @@ $taskid = $progid = 0;
 if ($argc > 1) 
 	parse_arguments($argc, $argv);
 
-$session_id = "";
-if ($conf_json_login_required) {
-	if ($conf_verbosity>0) print "Authenticating...\n";
-	$session_id = json_login();
-	if ($conf_verbosity>0) print "Login successful!\n\n";
-}
-
+authenticate();
 
 if ($taskid != 0) 
 	process_task($taskid, $progid);
@@ -226,20 +220,25 @@ function parse_arguments($argc, $argv) {
 		print "Error: too many parameters.\n\n";
 
 	else if ($argv[1] == "list-tasks") {
+		authenticate();
 		list_tasks();
 		exit (0);
 	}
 
-	else if ($argv[1] == "list-progs") {
+	else if ($argv[1] == "list-progs" || $argv[1] == "prog-info" || $argv[1] == "task-info") {
 		if ($argc == 2)
-			print "Error: list-progs takes exactly one parameter.\n\n";
+			print "Error: ".$argv[1]." takes exactly one parameter.\n\n";
 		else if (!is_numeric($argv[2]))
-			print "Error: PROGID is an integer.\n\n";
+			print "Error: ID is an integer.\n\n";
 		else {
-			list_progs($argv[2]);
+			authenticate();
+			if ($argv[1] == "list-progs") list_progs($argv[2]);
+			if ($argv[1] == "prog-info") prog_info($argv[2]);
+			if ($argv[1] == "task-info") task_info($argv[2]);
 			exit (0);
 		}
 	}
+
 	else if ($argv[1] != "help" && $argv[1] != "--help" && $argv[1] != "-h") {
 		if (!is_numeric($argv[1]) || ($argc==3 && !is_numeric($argv[2])))
 			print "Error: TASKID is an integer.\n\n";
@@ -251,17 +250,24 @@ function parse_arguments($argc, $argv) {
 	}
 
 	echo "Usage:\n\tphp pull.php PARAMS\n\n";
-	echo "Available PARAMS are:\n (none)\t\t\tProcess all unfinished programs in all available tasks\n TASKID\t\t\tProcess all unfinished programs in task TASKID\n TASKID PROGID\t\tProcess program PROGID in task TASKID\n list-tasks\t\tList all tasks available to current user\n list-progs TASKID\tList all programs in task TASKID available to current user\n help\t\t\tThis page\n\n";
+	echo "Available PARAMS are:\n (none)\t\t\tProcess all unfinished programs in all available tasks\n TASKID\t\t\tProcess all unfinished programs in task TASKID\n TASKID PROGID\t\tProcess program PROGID in task TASKID\n list-tasks\t\tList all tasks available to current user\n list-progs TASKID\tList all programs in task TASKID available to current user\n task-info TASKID\tSome information about task TASKID\n prog-info PROGID\tSome information about program PROGID\n help\t\t\tThis page\n\n";
 	exit (1);
 }
 
-function list_tasks() {
-	global $conf_verbosity, $session_id;
-	
-	if ($conf_verbosity>0) print "Authenticating...\n";
-	$session_id = json_login();
-	if ($conf_verbosity>0) print "Login successful!\n\n";
 
+
+function authenticate()
+{
+	global $session_id, $conf_json_login_required, $conf_verbosity;
+	$session_id = "";
+	if ($conf_json_login_required) {
+		if ($conf_verbosity>0) print "Authenticating...\n";
+		$session_id = json_login();
+		if ($conf_verbosity>0) print "Login successful!\n\n";
+	}
+}
+
+function list_tasks() {
 	$tasks = json_query("getTaskList");
 	print "\nAvailable tasks:\n";
 	foreach ($tasks as $task)
@@ -270,17 +276,23 @@ function list_tasks() {
 
 function progs_sort_by_name($p1, $p2) { return strcmp($p1['name'], $p2['name']); }
 function list_progs($taskid) {
-	global $conf_verbosity, $session_id;
-	
-	if ($conf_verbosity>0) print "Authenticating...\n";
-	$session_id = json_login();
-	if ($conf_verbosity>0) print "Login successful!\n\n";
-
 	$progs = json_query("getProgList", array("task" => $taskid));
 	print "\nAvailable programs in task:\n";
 	usort($progs, "progs_sort_by_name");
 	foreach ($progs as $prog)
 		print "  ".$prog['id']."\t".$prog['name']."\n";
 }
+function prog_info($progid) {
+	$status_codes = array("", "Awaiting tests", "Plagiarized", "Compile error", "Finished testing", "Graded", "No sources found");
+
+	$proginfo = json_query("getProgramData", array("program" => $progid));
+	print "\nProgram ID: $progid\nName: ".$proginfo['name']."\nStatus: ".$status_codes[$proginfo['status']]." (".$proginfo['status'].")\n\nTask info:";
+	task_info($proginfo['task']);
+}
+function task_info($taskid) {
+	$task = json_query("getTaskData", array("task" => $taskid));
+	print "\nTask ID: $taskid\nName: ".$task['name']."\nLanguage: ".$task['language']."\n";
+}
 
 ?>
+
