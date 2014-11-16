@@ -132,7 +132,7 @@ function process_program($task, $compiler, $debugger, $profiler, $program_id) {
 	if ($filelist == array()) {
 		// Skip to next program, nothing to do
 		json_query("setProgramStatus", array("program" => $program_id, "status" => PROGRAM_NO_SOURCES_FOUND), "POST" );
-		if ($conf_verbosity>0) print "No sources found.\n";
+		if ($conf_verbosity>0) print "No sources found.\n\n";
 		purge_instance($instance);
 		return; 
 	}
@@ -149,6 +149,7 @@ function process_program($task, $compiler, $debugger, $profiler, $program_id) {
 		if ($compile_result['status'] !== COMPILE_SUCCESS) {
 			json_query( "setProgramStatus", array("program" => $program_id, "status" => PROGRAM_COMPILE_ERROR ), "POST" );
 			purge_instance($instance);
+			if ($conf_verbosity>0) print "\n";
 			return; // skip run, test etc. if program can't be compiled
 		}
 	} else {
