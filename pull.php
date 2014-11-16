@@ -116,6 +116,10 @@ function process_program($task, $compiler, $debugger, $profiler, $program_id) {
 	global $conf_tmp_path, $conf_verbosity;
 
 	if ($conf_verbosity>0) print "Program id: ".$program_id."\n";
+	
+	// Display program data
+	$result = json_query("getProgramData", array("program" => $program_id) );
+	print $result['name']."\n";
 
 	// Get files (format is ZIP)
 	$zip_file = $conf_tmp_path."/bs_download_$program_id.zip";
