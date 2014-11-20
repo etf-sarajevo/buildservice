@@ -141,6 +141,10 @@ $conf_profilers = array(
 		"opts_log" => "--leak-check=full --log-file=LOGFILE", 
 		//"opts_log" => "--leak-check=full --log-file-exact=LOGFILE",  // old valgrind
 		"timeout_ratio" => 2, // We expect valgrind to run twice as long as program alone
+		// valgrind needs a lot of ram to work, sometimes as much as 100 MB for simple "hello world" style programs
+		// We don't want to enforce usual memory limits but we also don't want misbehaving programs to crash our machine
+		// Put roughly half your RAM below (in kB)
+		"vmem_hard_limit" => 1000000,
 	),
 );
 

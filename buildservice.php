@@ -287,7 +287,9 @@ function do_profile($exe_file, $profiler, $filelist, $params, $instance)
 		$timeout = $params['timeout'] * $profiler['timeout_ratio'];
 		$cmd = "ulimit -t $timeout; $cmd";
 	}
-	if (array_key_exists("vmem", $params) && $params['vmem'] > 0)
+	if (array_key_exists("vmem_hard_limit", $profiler))
+		$cmd = "ulimit -v ".$profiler['vmem_hard_limit']."; $cmd";
+	else if (array_key_exists("vmem", $params) && $params['vmem'] > 0)
 		$cmd = "ulimit -v ".$params['vmem']."; $cmd";
 	
 	if (array_key_exists("stdin", $params) && strlen($params['stdin']) > 0) {
