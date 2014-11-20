@@ -673,8 +673,9 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 		
 		// Adjust filenames and line numbers that were changed for the test
 		foreach ($profile_result['parsed_output'] as &$msg) {
-			if (instance_path($instance) . "/" . $msg['file'] === $adjustment_data['new_filename'])
-			test_adjust_lines($msg['file'], $msg['line'], $adjustment_data, $instance);
+			// Valgrind always returns just the base file name
+			if ( $msg['file'] === basename($adjustment_data['new_filename']) )
+				test_adjust_lines($msg['file'], $msg['line'], $adjustment_data, $instance);
 			if ( array_key_exists('file_alloced', $msg)
 			     && instance_path($instance) . "/" . $msg['file_alloced'] === $adjustment_data['new_filename'] )
 				test_adjust_lines($msg['file_alloced'], $msg['line_alloced'], $adjustment_data, $instance);
