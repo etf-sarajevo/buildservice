@@ -217,7 +217,7 @@ function process_program($task, $compiler, $debugger, $profiler, $program_id) {
 function parse_arguments($argc, $argv) {
 	global $taskid, $progid;
 
-	if ($argc>3)
+	if ($argc>4)
 		print "Error: too many parameters.\n\n";
 
 	else if ($argv[1] == "list-tasks") {
@@ -239,6 +239,17 @@ function parse_arguments($argc, $argv) {
 			exit (0);
 		}
 	}
+	else if ($argv[1] == "get-task") {
+		if ($argc < 4)
+			print "Error: ".$argv[1]." takes exactly two parameters.\n\n";
+		else if (!is_numeric($argv[2]))
+			print "Error: TASKID is an integer.\n\n";
+		else {
+			authenticate();
+			get_task($argv[2], $argv[3]);
+			exit (0);
+		}
+	}
 
 	else if ($argv[1] != "help" && $argv[1] != "--help" && $argv[1] != "-h") {
 		if (!is_numeric($argv[1]) || ($argc==3 && !is_numeric($argv[2])))
@@ -251,7 +262,7 @@ function parse_arguments($argc, $argv) {
 	}
 
 	echo "Usage:\n\tphp pull.php PARAMS\n\n";
-	echo "Available PARAMS are:\n (none)\t\t\tProcess all unfinished programs in all available tasks\n TASKID\t\t\tProcess all unfinished programs in task TASKID\n TASKID PROGID\t\tProcess program PROGID in task TASKID\n list-tasks\t\tList all tasks available to current user\n list-progs TASKID\tList all programs in task TASKID available to current user\n task-info TASKID\tSome information about task TASKID\n prog-info PROGID\tSome information about program PROGID\n help\t\t\tThis page\n\n";
+	echo "Available PARAMS are:\n (none)\t\t\tProcess all unfinished programs in all available tasks\n TASKID\t\t\tProcess all unfinished programs in task TASKID\n TASKID PROGID\t\tProcess program PROGID in task TASKID\n list-tasks\t\tList all tasks available to current user\n list-progs TASKID\tList all programs in task TASKID available to current user\n task-info TASKID\tSome information about task TASKID\n prog-info PROGID\tSome information about program PROGID\n get-task TASKID FILENAME\tDownload task description to a file\n help\t\t\tThis page\n\n";
 	exit (1);
 }
 
@@ -294,6 +305,10 @@ function task_info($taskid) {
 	$task = json_query("getTaskData", array("task" => $taskid));
 	print "\nTask ID: $taskid\nName: ".$task['name']."\nLanguage: ".$task['language']."\n";
 }
-
+function get_task($taskid, $filename) {
+	$task = json_query("getTaskData", array("task" => $taskid));
+	file_put_contents($filename, json_encode($task));
+	print "\nTask '".$task['name']."' written to file '".$filename."'\n\n";
+}
 ?>
 
