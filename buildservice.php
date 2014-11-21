@@ -519,6 +519,28 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	// Execute test
 	$run_result = do_run($filelist, $test_exe_file, $test['running_params'], $compiler, $task['compiler_options_debug'], $instance);
 	$test_result['run_result'] = $run_result;
+	$program_output = $run_result['output']; // Shortcut
+
+	// Output was too long and it was cut off... let's pretend it finished ok
+	if (strlen($program_output) >= $conf_max_program_output)
+		$program_output .= "\n$end_string\n";
+
+	// Find marker strings in program output
+	$start_pos  = strpos($program_output, $start_string);
+	if ($start_pos !== false) $start_pos += strlen($start_string);
+	$end_pos    = strpos($program_output, $end_string);
+	$except_pos = strpos($program_output, $except_string);
+
+	// Remove marker strings from output
+	if ($end_pos !== false)
+		$program_output = substr( $program_output, $start_pos, $end_pos-$start_pos);
+	else if ($except_pos !== false)
+		$program_output = substr( $program_output, $start_pos, $except_pos-$start_pos);
+	else if ($start_pos !== false)
+		$program_output = substr( $program_output, $start_pos );
+
+	$test_result['run_result']['output'] = $program_output;
+
 
 	if ($run_result['status'] === EXECUTION_TIMEOUT) {
 		$test_result['status'] = TEST_EXECUTION_TIMEOUT;
@@ -549,21 +571,6 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 			$test_result['debug_result'] = $debug_result;
 		}
 
-		// Remove marker strings from output in case of crash
-		$start_pos  = strpos($run_result['output'], $start_string);
-		if ($start_pos !== false) $start_pos += strlen($start_string);
-		$end_pos    = strpos($run_result['output'], $end_string);
-		$except_pos = strpos($run_result['output'], $end_string);
-		$output     = $test_result['run_result']['output'];
-
-		if ($end_pos !== false)
-			$output = substr( $output, $start_pos, $end_pos-$start_pos);
-		else if ($except_pos !== false)
-			$output = substr( $output, $start_pos, $except_pos-$start_pos);
-		else if ($start_pos !== false)
-			$output = substr( $output, $start_pos );
-		$test_result['run_result']['output'] = $output;
-
 		// If crash is unexpected, we will go on to profiler cause it can give some more information
 		if ($test['expected_crash'] === "true") return $test_result;
 	}
@@ -573,14 +580,6 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 
 	// === FINDING EXPECTED OUTPUT IN PROGRAM OUTPUT ===
 
-	// Output was too long and it was cut off... let's pretend it finished ok
-	if (strlen($run_result['output']) >= $conf_max_program_output)
-		$run_result['output'] .= "\n$end_string\n";
-	
-	$start_pos  = strpos($run_result['output'], $start_string);
-	if ($start_pos !== false) $start_pos += strlen($start_string);
-	$end_pos    = strpos($run_result['output'], $end_string);
-	$except_pos = strpos($run_result['output'], $except_string);
 
 	// Remove invisible spaces in expected program output
 	// Allow to specify newlines in expected output using \n
@@ -597,8 +596,6 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 			if ($conf_verbosity>0) print "- test ".$test['id']." failed - expected exception\n";
 			return $test_result;
 		}
-
-		$program_output = substr($run_result['output'], $start_pos, $end_pos-$start_pos);
 
 		// Remove invisible spaces and empty lines
 		$program_output = preg_replace("/\s+\n/", "\n", $program_output);
@@ -643,9 +640,6 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	}
 
 	else if ($start_pos !== false && $except_pos !== false) {
-		$program_output = substr($run_result['output'], $start_pos, $except_pos-$start_pos);
-		$test_result['run_result']['output'] = $program_output;
-
 		// TODO check type of exception
 		if ($test['expected_exception'] === "false") {
 			$test_result['status'] = TEST_UNEXPECTED_EXCEPTION;
@@ -662,9 +656,6 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	else {
 		$test_result['status'] = TEST_OUTPUT_NOT_FOUND;
 		if ($conf_verbosity>0) print "- test ".$test['id']." failed - output not found ($start_pos, $end_pos, $except_pos)\n";
-		// Remove start string from output, if it's found
-		if ($start_pos !== false)
-			$test_result['run_result']['output'] = substr( $test_result['run_result']['output'], $start_pos );
 	}
 
 	} // if ($run_result['status'] === EXECUTION_CRASH) { ... } else {
