@@ -47,6 +47,6 @@ Getting started
 1. Set up a web site that handles user submissions (programs), gives an UI to specify tasks etc.
 2. This web site should respond to REST requests (docs under construction). A sample web app is under construction.
 3. Check-out buildservice into a folder on some computer.
-4. Edit config.php - most importantly you should enter some unique ID for your PC (hostname?), URL to web service, optionally username and password if required.
+4. Rename config.php.default to config.php - most importantly you should enter some unique ID for your PC (hostname?), URL to web service, optionally username and password if required.
 5. Type "php pull.php" - it will attempt to grab all untested projects from your web service and perform whatever tasks neccessary.
 

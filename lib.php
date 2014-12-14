@@ -160,11 +160,11 @@ function json_query($action, $parameters = array(), $method = "GET")
 	$result = json_request_retry($url, $parameters, $method);
 
 	if (!array_key_exists("success", $result)) {
-		print "JSON query failed: unknown reason\n";
+		print "JSON query $action failed: unknown reason\n";
 		if ($conf_verbosity>0) print_r($result);
 	} 
 	else if ($result["success"] !== "true") {
-		print "JSON query failed: ". $result['code']. " : ". $result['message'] . "\n"; 
+		print "JSON query $action failed: ". $result['code']. " : ". $result['message'] . "\n"; 
 		return FALSE;
 	}
 	return $result["data"];

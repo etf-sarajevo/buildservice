@@ -20,6 +20,10 @@
 // PULL.PHP - evaluate programs returned by external webservice
 
 
+if (!file_exists("config.php")) {
+	echo "First you need to copy config.php.default to config.php and edit it.\n";
+	exit(1);
+}
 require_once("config.php");
 require_once("lib.php");
 require_once("status_codes.php");
