@@ -70,6 +70,7 @@ $conf_compilers = array(
 		"executor_path" => "", // Compiler generates executables
 		"cmd_line" => "COMPILER_PATH -o OUTPUT_FILE SOURCE_FILES OPTIONS",
 		"exe_line" => "OUTPUT_FILE",
+		"version_line" => "COMPILER_PATH --version | grep ^gcc",
 		"features" => array(), // add features supported by this compiler 
 	),
 
@@ -83,6 +84,7 @@ $conf_compilers = array(
 		//"cmd_line" => "COMPILER_PATH -o OUTPUT_FILE SOURCE_FILES -Wl,-rpath /opt/gcc-4.8.2/lib64 OPTIONS",
 		"cmd_line" => "COMPILER_PATH -o OUTPUT_FILE SOURCE_FILES OPTIONS",
 		"exe_line" => "OUTPUT_FILE",
+		"version_line" => "COMPILER_PATH --version | grep ^g++",
 		"features" => array( "c++11" ),
 	),
 
@@ -94,6 +96,7 @@ $conf_compilers = array(
 		"executor_path" => "java",
 		"cmd_line" => "COMPILER_PATH OPTIONS SOURCE_FILES",
 		"exe_line" => "EXECUTOR_PATH OUTPUT_FILE", // FIXME with java output files are always named Foo.class, so this needs to be hardcoded
+		"version_line" => "COMPILER_PATH --version",
 		"features" => array(), 
 	),
 
@@ -105,6 +108,7 @@ $conf_compilers = array(
 		"executor_path" => "/usr/bin/python3",
 		"cmd_line" => "COMPILER_PATH -m py_compile OPTIONS SOURCE_FILES",
 		"exe_line" => "EXECUTOR_PATH OPTIONS SOURCE_FILES",
+		"version_line" => "COMPILER_PATH --version",
 		"features" => array( "python3" ), // Python version 3 is used
 	),
 );
@@ -122,6 +126,7 @@ $conf_debuggers = array(
 		"features" => array(),
 		// options needed to process core dump (COREFILE will be replaced with filename)
 		"opts_core" => "--batch -ex \"bt 100\" --core=COREFILE", 
+		"version_line" => "PATH --version | grep ^GNU",
 	),
 );
 
@@ -145,6 +150,7 @@ $conf_profilers = array(
 		// We don't want to enforce usual memory limits but we also don't want misbehaving programs to crash our machine
 		// Put roughly half your RAM below (in kB)
 		"vmem_hard_limit" => 1000000,
+		"version_line" => "PATH --version",
 	),
 );
 

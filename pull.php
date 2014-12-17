@@ -38,6 +38,15 @@ $taskid = $progid = 0;
 if ($argc > 1) 
 	parse_arguments($argc, $argv);
 
+
+// Buildhost description
+$buildhost_description = array(
+	"id" => $buildhost_id, 
+	"os" => get_os_version()
+);
+
+if ($conf_verbosity>-1) print "OS: ".$buildhost_description['os']."\n";
+
 authenticate();
 
 if ($taskid != 0) 
@@ -61,7 +70,7 @@ exit(0);
 // Process all pending programs in given task
 // If $progid isn't zero, process just that program
 function process_task($taskid, $progid = 0) {
-	global $conf_verbosity, $buildhost_id;
+	global $conf_verbosity, $buildhost_description;
 	// Get task data
 	$task = json_query("getTaskData", array("task" => $taskid));
 	if ($conf_verbosity>0) print "Task ($taskid): ".$task['name']."\n";
@@ -81,10 +90,15 @@ function process_task($taskid, $progid = 0) {
 	$debugger = find_best_debugger($task['language']);
 	$profiler = find_best_profiler($task['language']);
 
+	// Add tool versions to buildhost description
+	$buildhost_description['compiler_version'] = $compiler['version'];
+	if ($debugger) $buildhost_description['debugger_version'] = $debugger['version'];
+	if ($profiler) $buildhost_description['profiler_version'] = $profiler['version'];
+
 	if ($conf_verbosity>0) {
-		print "Found compiler: ".$compiler['name']."\n";
-		if ($debugger) print "Found debugger: ".$debugger['name']."\n";
-		if ($profiler) print "Found profiler: ".$profiler['name']."\n";
+		print "Found compiler: ".$compiler['version']."\n";
+		if ($debugger) print "Found debugger: ".$debugger['version']."\n";
+		if ($profiler) print "Found profiler: ".$profiler['version']."\n";
 		print "\n";
 	}
 
@@ -93,7 +107,7 @@ function process_task($taskid, $progid = 0) {
 
 	else while(true) {
 		// Loop through available programs for this task
-		$result = json_query("assignProgram", array("task" => $taskid, "buildhost" => $buildhost_id));
+		$result = json_query("assignProgram", array("task" => $taskid, "buildhost" => json_encode($buildhost_description)));
 
 		// Upon calling assignProgram server will assign program to this buildhost
 		// If buildhost doesn't set a status after certain time, it will be released for other hosts to build
@@ -111,7 +125,7 @@ function process_task($taskid, $progid = 0) {
 
 
 function process_program($task, $compiler, $debugger, $profiler, $program_id) {
-	global $conf_tmp_path, $conf_verbosity;
+	global $conf_tmp_path, $conf_verbosity, $buildhost_description;
 
 	if ($conf_verbosity>0) print "Program id: ".$program_id;
 	
@@ -135,7 +149,7 @@ function process_program($task, $compiler, $debugger, $profiler, $program_id) {
 	$filelist = find_sources($task, $instance);
 	if ($filelist == array()) {
 		// Skip to next program, nothing to do
-		json_query("setProgramStatus", array("program" => $program_id, "status" => PROGRAM_NO_SOURCES_FOUND), "POST" );
+		json_query("setProgramStatus", array("program" => $program_id, "buildhost" => json_encode($buildhost_description), "status" => PROGRAM_NO_SOURCES_FOUND), "POST" );
 		if ($conf_verbosity>0) print "No sources found.\n\n";
 		purge_instance($instance);
 		return; 
@@ -151,7 +165,7 @@ function process_program($task, $compiler, $debugger, $profiler, $program_id) {
 		json_query( "setCompileResult", array("program" => $program_id, "result" => json_encode($compile_result)), "POST" );
 
 		if ($compile_result['status'] !== COMPILE_SUCCESS) {
-			json_query( "setProgramStatus", array("program" => $program_id, "status" => PROGRAM_COMPILE_ERROR ), "POST" );
+			json_query( "setProgramStatus", array("program" => $program_id, "buildhost" => json_encode($buildhost_description), "status" => PROGRAM_COMPILE_ERROR ), "POST" );
 			purge_instance($instance);
 			if ($conf_verbosity>0) print "\n";
 			return; // skip run, test etc. if program can't be compiled
@@ -165,7 +179,7 @@ function process_program($task, $compiler, $debugger, $profiler, $program_id) {
 	if ($task['run'] === "true") {
 		$run_result = do_run($filelist, $exe_file, $task['running_params'], $compiler, $task['compiler_options'], $instance);
 
-		json_query( "setExecuteResult", array("program" => $program_id, "result" => json_encode($run_result)), "POST" );
+		json_query( "setExecuteResult", array("program" => $program_id, "buildhost" => json_encode($buildhost_description), "result" => json_encode($run_result)), "POST" );
 
 		// Debug
 		if ($run_result['status'] == EXECUTION_CRASH && $task['debug'] === "true" && $debugger) {
@@ -176,7 +190,7 @@ function process_program($task, $compiler, $debugger, $profiler, $program_id) {
 			// most likely options are bad... so we'll skip debugging
 			if ($compile_result['status'] === COMPILE_SUCCESS) {
 				$debug_result = do_debug($debug_exe_file, $debugger, $run_result['core'], $filelist, $instance);
-				json_query( "setDebugResult", array("program" => $program_id, "result" => json_encode($debug_result)), "POST" );
+				json_query( "setDebugResult", array("program" => $program_id, "buildhost" => json_encode($buildhost_description), "result" => json_encode($debug_result)), "POST" );
 				unlink($run_result['core']);
 			}
 		}
@@ -188,7 +202,7 @@ function process_program($task, $compiler, $debugger, $profiler, $program_id) {
 
 			if ($compile_result['status'] === COMPILE_SUCCESS) {
 				$profile_result = do_profile($debug_exe_file, $profiler, $filelist, $task['running_params'], $instance);
-				json_query( "setProfileResult", array("program" => $program_id, "result" => json_encode($profile_result)), "POST" );
+				json_query( "setProfileResult", array("program" => $program_id, "buildhost" => json_encode($buildhost_description), "result" => json_encode($profile_result)), "POST" );
 			}
 		}
 	}
@@ -204,11 +218,11 @@ function process_program($task, $compiler, $debugger, $profiler, $program_id) {
 		foreach ($task['test_specifications'] as $test) {
 			if ($conf_verbosity>0) print "Test ".($count++)."\n";
 			$test_result = do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profiler, $task, $instance);
-			json_query("setTestResult", array( "program" => $program_id, "test" => $test['id'], "result" => json_encode($test_result)), "POST" );
+			json_query("setTestResult", array( "program" => $program_id, "buildhost" => json_encode($buildhost_description), "test" => $test['id'], "result" => json_encode($test_result)), "POST" );
 		}
 	}
 
-	json_query( "setProgramStatus", array("program" => $program_id, "status" => PROGRAM_FINISHED_TESTING ), "POST" );
+	json_query( "setProgramStatus", array("program" => $program_id, "buildhost" => json_encode($buildhost_description), "status" => PROGRAM_FINISHED_TESTING ), "POST" );
 
 
 	purge_instance($instance);

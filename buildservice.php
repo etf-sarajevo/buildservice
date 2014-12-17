@@ -743,15 +743,25 @@ function find_best_compiler($language, $required_compiler, $preferred_compiler, 
 		}
 
 		// Check required/preffered
-		if (strtolower($compiler["name"]) === strtolower($required_compiler))
-			return $compiler;
+		if (strtolower($compiler["name"]) === strtolower($required_compiler)) {
+			$found_compiler = $compiler;
+			break;
+		}
 		if (!empty($required_compiler))
 			continue;
-		if (strtolower($compiler["name"]) === strtolower($preferred_compiler))
-			return $compiler;
+		if (strtolower($compiler["name"]) === strtolower($preferred_compiler)) {
+			$found_compiler = $compiler;
+			break;
+		}
 
 		// We found a compiler that is not preferred
 		$found_compiler = $compiler;
+	}
+	
+	// Detect compiler version
+	if ($found_compiler !== false) {
+		$version_cmd = str_replace("COMPILER_PATH", $found_compiler['compiler_path'], $found_compiler['version_line']);
+		$found_compiler['version'] = trim(`$version_cmd`);
 	}
 
 	return $found_compiler;
@@ -763,13 +773,34 @@ function find_best_debugger($language)
 {
 	global $conf_debuggers;
 	if (empty($conf_debuggers)) return false;
-	return $conf_debuggers[0];
+	$found_debugger = $conf_debuggers[0]; // Just return first one
+	
+	// Detect debugger version
+	$version_cmd = str_replace("PATH", $found_debugger['path'], $found_debugger['version_line']);
+	$found_debugger['version'] = trim(`$version_cmd`);
+	
+	return $found_debugger;
 }
 function find_best_profiler($language)
 {
 	global $conf_profilers;
 	if (empty($conf_profilers)) return false;
-	return $conf_profilers[0];
+	$found_profiler = $conf_profilers[0]; // Just return first one
+	
+	// Detect debugger version
+	$version_cmd = str_replace("PATH", $found_profiler['path'], $found_profiler['version_line']);
+	$found_profiler['version'] = trim(`$version_cmd`);
+	
+	return $found_profiler;
+}
+
+function get_os_version()
+{
+	$os = `uname -srm`; // Works on Cygwin!
+	if (trim(`uname -s`) === "Linux")
+		// Redirect stderr to /dev/null if lsb_release doesn't exist
+		$os .= `lsb_release -sd 2>/dev/null`;
+	return $os;
 }
 
 
