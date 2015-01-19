@@ -243,8 +243,9 @@ function do_debug($exe_file, $debugger, $coredump, $filelist, $instance)
 	if ($conf_verbosity>0) print "Debugging ".basename($exe_file)."...\n";
 	
 	// Do it!
+	$cwd = instance_path($instance);
 	$opts_core = str_replace( "COREFILE", $coredump, $debugger['opts_core'] );
-	$cmd = $debugger['path']." ".$debugger['local_opts']." ".$opts_core." $exe_file";
+	$cmd = "cd $cwd; ".$debugger['path']." ".$debugger['local_opts']." ".$opts_core." $exe_file";
 	exec($cmd, $output);
 
 	$debug_result = array();
@@ -302,7 +303,7 @@ function do_profile($exe_file, $profiler, $filelist, $params, $instance)
 		$cmd .= "< $stdin_name";
 	}
 	
-	$cmd .= " &> $cwd/null; echo $!";
+	$cmd = "cd $cwd; $cmd &> $cwd/null; echo $!";
 	
 	exec($cmd, $blah);
 	$pid = (int)$blah[0]-1; // First one is ulimit, but for some reason valgrind uses that!?
