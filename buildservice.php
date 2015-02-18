@@ -223,11 +223,11 @@ function do_run($filelist, $exe_file, $params, $compiler, $compiler_options, $in
 		if ($conf_verbosity>0) print "- Duration was $duration\n";
 		$run_result['status'] = EXECUTION_TIMEOUT;
 	}
-
-	if (file_exists("$cwd/core.$pid")) {
-		if ($conf_verbosity>0) print "- Crashed\n";
+	
+	if ($filename = glob("$cwd/core.*")) {
+		if ($conf_verbosity>0) print "- Crashed (".$filename[0].")\n";
 		$run_result['status'] = EXECUTION_CRASH;
-		$run_result['core'] = "$cwd/core.$pid";
+		$run_result['core'] = $filename[0];
 	}
 
 	return $run_result;
@@ -575,6 +575,7 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 			}
 			$test_result['debug_result'] = $debug_result;
 		}
+		unlink ($run_result['core']);
 
 		// If crash is unexpected, we will go on to profiler cause it can give some more information
 		if ($test['expected_crash'] === "true") return $test_result;
