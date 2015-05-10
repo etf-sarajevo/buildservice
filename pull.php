@@ -31,7 +31,7 @@ require_once("buildservice.php");
 
 
 // Command line params 
-echo "pull.php\nCopyright (c) 2014 Vedran Ljubović\nElektrotehnički fakultet Sarajevo\nLicensed under GNU GPL v3\n\n";
+echo "pull.php\nCopyright (c) 2014,2015 Vedran Ljubović\nElektrotehnički fakultet Sarajevo\nLicensed under GNU GPL v3\n\n";
 
 $taskid = $progid = 0;
 
@@ -232,56 +232,98 @@ function process_program($task, $compiler, $debugger, $profiler, $program_id) {
 } // End process_program
 
 
+
+// ------------------------------------
+// COMMAND LINE PARAMETERS PROCESSING
+// ------------------------------------
+
+
+function usage() {
+	?>
+Usage:	php pull.php PARAMS
+
+Available PARAMS are:
+ (none)			Process all unfinished programs in all available tasks
+ TASKID			Process all unfinished programs in task TASKID
+ TASKID PROGID		Process program PROGID in task TASKID
+ list-tasks		List all tasks available to current user
+ list-progs TASKID	List all programs in task TASKID available to current user
+ task-info TASKID	Some information about task TASKID
+ prog-info PROGID	Some information about program PROGID
+ fetch-task TASKID FILENAME	Download task description to a file
+ fetch-progs TASKID PATH	Download all programs in task description to a directory PATH
+ set-status TASKID STATUS	Set all programs in task to STATUS
+ help			This help page
+
+/<?php
+}
+
+
 function parse_arguments($argc, $argv) {
 	global $taskid, $progid;
 
-	if ($argc>4)
-		print "Error: too many parameters.\n\n";
+	// Display help
+	if ($argc == 1 || in_array("help", $argv) || in_array("--help", $argv) || in_array("-h", $argv)) {
+		usage();
+		exit (1);
+	}
 
-	else if ($argv[1] == "list-tasks") {
+	// Commands that take no params
+	if (in_array("list-tasks", $argv)) {
 		authenticate();
 		list_tasks();
 		exit (0);
 	}
 
-	else if ($argv[1] == "list-progs" || $argv[1] == "prog-info" || $argv[1] == "task-info") {
-		if ($argc == 2)
-			print "Error: ".$argv[1]." takes exactly one parameter.\n\n";
-		else if (!is_numeric($argv[2]))
+	// Commands that take one param
+	$pi = 0;
+	if (($pi = array_search("list-progs", $argv)) || ($pi = array_search("prog-info", $argv)) || ($pi = array_search("task-info", $argv))) {
+		if ($pi == 1) $ii = 2; else $ii = 1;
+		if ($argc < 3) {
+			print "Error: ".$argv[$pi]." takes exactly one parameter.\n\n";
+			usage();
+		} else if (!is_numeric($argv[$ii]))
 			print "Error: ID is an integer.\n\n";
 		else {
 			authenticate();
-			if ($argv[1] == "list-progs") list_progs($argv[2]);
-			if ($argv[1] == "prog-info") prog_info($argv[2]);
-			if ($argv[1] == "task-info") task_info($argv[2]);
-			exit (0);
+			if ($argv[$pi] == "list-progs") list_progs($argv[$ii]);
+			if ($argv[$pi] == "prog-info") prog_info($argv[$ii]);
+			if ($argv[$pi] == "task-info") task_info($argv[$ii]);
 		}
+		exit (0);
 	}
-	else if ($argv[1] == "get-task") {
-		if ($argc < 4)
-			print "Error: ".$argv[1]." takes exactly two parameters.\n\n";
-		else if (!is_numeric($argv[2]))
+
+	// Commands that take two params
+	if (($pi = array_search("fetch-task", $argv)) || ($pi = array_search("fetch-progs", $argv)) || ($pi = array_search("set-status", $argv))) {
+		if ($pi == 1) { $ii1 = 2; $ii2 = 3; }
+		else if ($pi == 2) { $ii1 = 1; $ii2 = 3; }
+		else { $ii1 = 1; $ii2 = 2; }
+
+		if ($argc < 4) {
+			print "Error: ".$argv[$pi]." takes exactly two parameters.\n\n";
+			usage();
+		}
+		else if (!is_numeric($argv[$ii1]))
 			print "Error: TASKID is an integer.\n\n";
 		else {
 			authenticate();
-			get_task($argv[2], $argv[3]);
-			exit (0);
+			if ($argv[$pi] == "fetch-task") fetch_task($argv[$ii1], $argv[$ii2]);
+			if ($argv[$pi] == "fetch-progs") fetch_progs($argv[$ii1], $argv[$ii2]);
+			if ($argv[$pi] == "set-status") set_status($argv[$ii1], $argv[$ii2]);
 		}
+		exit (0);
 	}
 
-	else if ($argv[1] != "help" && $argv[1] != "--help" && $argv[1] != "-h") {
-		if (!is_numeric($argv[1]) || ($argc==3 && !is_numeric($argv[2])))
-			print "Error: TASKID is an integer.\n\n";
-		else {
-			$taskid = $argv[1];
-			if ($argc == 3) $progid = $argv[2];
-			return;
-		}
+	// Unrecognized command
+	if (!is_numeric($argv[1]) || ($argc==3 && !is_numeric($argv[2])))
+		print "Error: TASKID is an integer.\n\n";
+	else {
+		$taskid = $argv[1];
+		if ($argc == 3) $progid = $argv[2];
+		return;
 	}
-
-	echo "Usage:\n\tphp pull.php PARAMS\n\n";
-	echo "Available PARAMS are:\n (none)\t\t\tProcess all unfinished programs in all available tasks\n TASKID\t\t\tProcess all unfinished programs in task TASKID\n TASKID PROGID\t\tProcess program PROGID in task TASKID\n list-tasks\t\tList all tasks available to current user\n list-progs TASKID\tList all programs in task TASKID available to current user\n task-info TASKID\tSome information about task TASKID\n prog-info PROGID\tSome information about program PROGID\n get-task TASKID FILENAME\tDownload task description to a file\n help\t\t\tThis page\n\n";
-	exit (1);
+	usage();
+	exit (0);
 }
 
 
@@ -312,21 +354,71 @@ function list_progs($taskid) {
 	foreach ($progs as $prog)
 		print "  ".$prog['id']."\t".$prog['name']."\n";
 }
+
 function prog_info($progid) {
-	$status_codes = array("", "Awaiting tests", "Plagiarized", "Compile error", "Finished testing", "Graded", "No sources found");
+	global $global_status_codes;
 
 	$proginfo = json_query("getProgramData", array("program" => $progid));
-	print "\nProgram ID: $progid\nName: ".$proginfo['name']."\nStatus: ".$status_codes[$proginfo['status']]." (".$proginfo['status'].")\n\nTask info:";
+	print "\nProgram ID: $progid\nName: ".$proginfo['name']."\nStatus: ".$global_status_codes[$proginfo['status']]." (".$proginfo['status'].")\n\nTask info:";
 	task_info($proginfo['task']);
 }
+
 function task_info($taskid) {
 	$task = json_query("getTaskData", array("task" => $taskid));
 	print "\nTask ID: $taskid\nName: ".$task['name']."\nLanguage: ".$task['language']."\n";
 }
-function get_task($taskid, $filename) {
+
+function fetch_task($taskid, $filename) {
 	$task = json_query("getTaskData", array("task" => $taskid));
 	file_put_contents($filename, json_encode($task));
 	print "\nTask '".$task['name']."' written to file '".$filename."'\n\n";
 }
+
+function fetch_progs($taskid, $path) {
+	global $conf_verbosity, $conf_json_max_retries;
+
+	if (!is_dir($path)) {
+		print "\nError: Path doesn't exist or isn't a directory: $path\n";
+		return;
+	}
+	
+	$progs = json_query("getProgList", array("task" => $taskid));
+	usort($progs, "progs_sort_by_name");
+	foreach ($progs as $prog) {
+		$zip_file = $path . "/" . $prog['id'] . ".zip";
+		if (!json_get_binary_file($zip_file, "getFile", array("program" => $prog['id']))) {
+			// Retry on failure
+			$try = 1;
+			do {
+				print "... try $try ...\n";
+				$result = json_get_binary_file($zip_file, "getFile", array("program" => $prog['id']));
+				$try++;
+			} while ($result === FALSE && $try < $conf_json_max_retries);
+			if ($conf_verbosity>0) 
+				print "\nError: Failed to download ".$prog['id']."\n";
+		}
+		else if ($conf_verbosity > 0)
+			print "Download program ".$prog['id']."\t".$prog['name']."\n";
+	}
+}
+
+function set_status($taskid, $status) {
+	global $global_status_codes, $conf_verbosity;
+	
+	if ($status < 0 || $status > count($global_status_codes)) {
+		print "\nError: Unrecognized status code $status.\n";
+		return;
+	} else
+		print "\nSetting all programs in task $taskid to status $status (".$global_status_codes[$status].")\n";
+
+	$progs = json_query("getProgList", array("task" => $taskid));
+	usort($progs, "progs_sort_by_name");
+	foreach ($progs as $prog) {
+		json_query("setProgramStatus", array("program" => $prog['id'], "status" => $status), "POST" );
+		if ($conf_verbosity > 0)
+			print "Set status for program ".$prog['id']."\t".$prog['name']."\n";
+	}
+}
+
 ?>
 
