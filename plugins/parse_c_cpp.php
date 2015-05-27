@@ -91,6 +91,7 @@ function parser_error($msg, $file, $code, $pos)
 	$start = $pos - $context_before;
 	$end   = $pos + $context_after;
 	if ($start < 0) $start=0;
+	if ($start > strlen($code)) $start=strlen($code);
 	if ($end > strlen($code)) $end=strlen($code);
 	print "Context: ".substr($code, $start, $end-$start)."\n";
 }
@@ -161,6 +162,10 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 	global $conf_verbosity;
 
 	$symbols = array();
+
+	// Remove comments from code
+	$sourcecode = preg_replace("|//.*?\n|", "", $sourcecode);
+	$sourcecode = preg_replace("|/\*.*?\*/|", "", $sourcecode);
 
 	$lineno=1;
 	for ($i=0; $i<strlen($sourcecode); $i++) {
@@ -384,7 +389,6 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 			// skip to semicolon or end of block, whichever comes first
 			$sc_pos    = strpos($sourcecode, ";", $i);
 			$curly_pos = strpos($sourcecode, "{", $i);
-			
 			
 			// there is neither curly nor semicolon, syntax error
 			if ($curly_pos === false && $sc_pos === false) {
