@@ -61,8 +61,10 @@ function find_matching($string, $pos)
 		}
 		if ($string[$i] == '"') {
 			$end = strpos($string, '"', $i+1);
+			// Skip escaped quotes
+			while ($end>1 && $string[$end-1] == "\\") $end = strpos($string, '"', $end+1);
 			if ($end === false) {
-				if ($conf_verbosity>1) print "extract_global_symbols(): unclosed string constant\n";
+				if ($conf_verbosity>1) print "extract_global_symbols(): unclosed string constant at $i\n";
 				break;
 			}
 			$i = $end;
@@ -228,10 +230,22 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 				$i = skip_whitespace($sourcecode, $i+5); 
 
 			// skip type
-			$start_ns = $end_ns = -1;
-			$start_type = $i;
-			$i = skip_ident_chars($sourcecode, $i);
-			$end_type = $i;
+			$multiword = array("long double", "unsigned int", "unsigned long", "short int", "unsigned short"); // TODO add all
+			$found = false;
+			foreach($multiword as $type) 
+				if (strlen($sourcecode)>$i+strlen($type) && substr($sourcecode, $i, strlen($type)) == $type) {
+					$found = true;
+					$start_type = $i;
+					$i += strlen($type);
+					$end_type = $i;
+					break;
+				}
+			if (!$found) {
+				$start_ns = $end_ns = -1;
+				$start_type = $i;
+				$i = skip_ident_chars($sourcecode, $i);
+				$end_type = $i;
+			}
 			$i = skip_whitespace($sourcecode, $i); 
 			
 			// skip template as part of type
