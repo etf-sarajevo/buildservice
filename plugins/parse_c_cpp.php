@@ -132,27 +132,40 @@ function skip_template($string, $i)
 	return $i;
 }
 
-function parse_cpp11_init_list($string, $pos)
+function skip_constructor($string, $pos)
 {
 	global $conf_verbosity;
 
-	for ($i=$pos+1; $i<strlen($string); $i++) {
-		$i = skip_whitespace($string, $i);
-		if ($string[$i] == ';' || $string[$i] == '{') return $i;
-
-		$i = skip_ident_chars($string, $i);
-		$i = skip_whitespace($string, $i);
-		if ($string[$i] == '(' || $string[$i] == '{') $i = find_matching($string, $i)+1;
-		else {
-			if ($conf_verbosity>1) parser_error("invalid init list format (no brace)", "", $string, $i);
-			return false;
-		}
-		$i = skip_whitespace($string, $i);
-		if ($string[$i] != ',' && $string[$i] != ';' && $string[$i] != '{') {
-			if ($conf_verbosity>1) parser_error("invalid init list format (no comma)", "", $string, $i);
-			return false;
-		} else if ($string[$i] == ';' || $string[$i] == '{') $i--;
+	$open_brace_pos = strpos($string, "(", $pos);
+	$close_brace_pos = find_matching($string, $open_brace_pos);
+	if ($close_brace_pos == strlen($string)) {
+		if ($conf_verbosity>1) parser_error("ctor invalid parameter list", $file, $string, $end_type);
+		return false;
 	}
+
+	$colon_pos = strpos($string, ":", $close_brace_pos);
+	$sc_pos    = strpos($string, ";", $close_brace_pos);
+	$curly_pos = strpos($string, "{", $close_brace_pos);
+	if ($colon_pos !== false && ($sc_pos === false || $colon_pos < $sc_pos) && ($curly_pos === false || $colon_pos < $curly_pos)) {
+		for ($i=$colon_pos+1; $i<strlen($string); $i++) {
+			$i = skip_whitespace($string, $i);
+			if ($string[$i] == ';' || $string[$i] == '{') return $i;
+
+			$i = skip_ident_chars($string, $i);
+			$i = skip_whitespace($string, $i);
+			if ($string[$i] == '(' || $string[$i] == '{') $i = find_matching($string, $i)+1;
+			else {
+				if ($conf_verbosity>1) parser_error("invalid init list format (no brace)", "", $string, $i);
+				return false;
+			}
+			$i = skip_whitespace($string, $i);
+			if ($string[$i] != ',' && $string[$i] != ';' && $string[$i] != '{') {
+				if ($conf_verbosity>1) parser_error("invalid init list format (no comma)", "", $string, $i);
+				return false;
+			} else if ($string[$i] == ';' || $string[$i] == '{') $i--;
+		}
+	}
+	return $pos;
 }
 
 
@@ -370,19 +383,14 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 
 				// Ctor, dtor and such
 				} else {
-					//$class_name = substr($sourcecode, $start_ns, $end_ns-$start_ns);
-					if ($conf_verbosity>2) print "Skip ctor-like ident $ident_name\n";
+					$class_name = substr($sourcecode, $start_ns, $end_ns-$start_ns);
+					if ($conf_verbosity>2) print "Skip ctor-like ident $class_name::$ident_name\n";
 
 					// In case of constructor, we need to skip the initialization list
-					$colon_pos = strpos($sourcecode, ":", $end_type);
-					$sc_pos    = strpos($sourcecode, ";", $end_type);
-					$curly_pos = strpos($sourcecode, "{", $end_type);
-					if ($colon_pos !== false && ($sc_pos === false || $colon_pos < $sc_pos) && ($curly_pos === false || $colon_pos < $curly_pos)) {
-						// This wouldn't be neccessary if not for C++11 style initializers using curly braces e.g.
-						// MyClass::MyClass() : attribute{value}, attribute{value} { /* Actual ctor code */ }
-						$i = parse_cpp11_init_list($sourcecode, $colon_pos);
-						if ($i === false) break;
-					}
+					// This wouldn't be neccessary if not for C++11 style initializers using curly braces e.g.
+					// MyClass::MyClass() : attribute{value}, attribute{value} { /* Actual ctor code */ }
+					$i = skip_constructor($sourcecode, $end_type);
+					if ($i === false) break;
 				}
 			}
 			
