@@ -350,18 +350,19 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 				$ident_name = substr($sourcecode, $ident_begin, $i-$ident_begin);
 				$i = skip_whitespace($sourcecode, $i); 
 			
-				if ($sourcecode[$i] == "<" || $sourcecode[$i] == ":") {
+				if ($sourcecode[$i] == "<" && $ident_name !== "operator" || $sourcecode[$i] == ":") {
 					// This is a class method
 					$class_name = $ident_name;
 
 					// Find method name (used just for debugging msgs)
 					if ($sourcecode[$i] == "<") $i = find_matching($sourcecode, $i)+1;
-					if ($i === false || $i === strlen($sourcecode)-1) break;
-					if ($sourcecode[$i] == ":") $i += 2;
-					$ident_begin = $i;
-					if ($sourcecode[$i] == "~") $i++;
-					$i = skip_ident_chars($sourcecode, $i);
-					$ident_name = substr($sourcecode, $ident_begin, $i-$ident_begin);
+					if ($i !== false && $i < strlen($sourcecode)-1) {
+						if ($sourcecode[$i] == ":") $i += 2;
+						$ident_begin = $i;
+						if ($sourcecode[$i] == "~") $i++;
+						$i = skip_ident_chars($sourcecode, $i);
+						$ident_name = substr($sourcecode, $ident_begin, $i-$ident_begin);
+					}
 
 					if ($conf_verbosity>2) print "Skip class method $class_name::$ident_name\n";
 				} else {
