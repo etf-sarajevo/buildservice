@@ -46,7 +46,7 @@ function find_matching($string, $pos)
 		if (substr($string, $i, 2) == "/*") {
 			$eoc = strpos($string, "*/", $i);
 			if ($eoc === false) {
-				if ($conf_verbosity>1) print "extract_global_symbols(): syntax error: C-style comment doesn't end\n";
+				if ($conf_verbosity>1) parser_error("C-style comment doesn't end", "", $string, $i);
 				break;
 			}
 			$i = $eoc+2;
@@ -54,15 +54,17 @@ function find_matching($string, $pos)
 		if ($string[$i] == "'") {
 			$end = strpos($string, "'", $i+1);
 			if ($end === false) {
-				if ($conf_verbosity>1) print "extract_global_symbols(): unclosed char constant\n";
+				if ($conf_verbosity>1) parser_error("unclosed char constant", "", $string, $i);
 				break;
 			}
 			$i = $end;
 		}
 		if ($string[$i] == '"') {
 			$end = strpos($string, '"', $i+1);
+			// Skip escaped quotes
+			while ($end>1 && $string[$end-1] == "\\") $end = strpos($string, '"', $end+1);
 			if ($end === false) {
-				if ($conf_verbosity>1) print "extract_global_symbols(): unclosed string constant\n";
+				if ($conf_verbosity>1) parser_error("unclosed string constant", "", $string, $i);
 				break;
 			}
 			$i = $end;
@@ -70,6 +72,30 @@ function find_matching($string, $pos)
 	}
 	return $i;
 }
+
+// Display error message with some context
+function parser_error($msg, $file, $code, $pos)
+{
+	$context_before = $context_after = 20;
+
+	print "C/C++ parser error: $msg\n";
+
+	print "   ";
+	if (!empty($file)) print "File: $file, ";
+
+	// Get line number
+	$line = 1;
+	for ($i=0; $i<$pos; $i++) if ($code[$i] == "\n") $line++;
+	print "Line: $line, ";
+
+	$start = $pos - $context_before;
+	$end   = $pos + $context_after;
+	if ($start < 0) $start=0;
+	if ($start > strlen($code)) $start=strlen($code);
+	if ($end > strlen($code)) $end=strlen($code);
+	print "Context: ".substr($code, $start, $end-$start)."\n";
+}
+
 
 function skip_whitespace($string, $i) 
 {
@@ -100,10 +126,46 @@ function skip_template($string, $i)
 	if ($i>=strlen($string) || $string[$i] !== "<") return false;
 	$i = find_matching($string, $i);
 	if ($i === false) {
-		if ($conf_verbosity>1) print "extract_global_symbols(): syntax error in $file: template never ends\n";
+		if ($conf_verbosity>1) parser_error("template never ends", "", $string, $i);
 		return false;
 	}
 	return $i;
+}
+
+function skip_constructor($string, $pos)
+{
+	global $conf_verbosity;
+
+	$open_brace_pos = strpos($string, "(", $pos);
+	$close_brace_pos = find_matching($string, $open_brace_pos);
+	if ($close_brace_pos == strlen($string)) {
+		if ($conf_verbosity>1) parser_error("ctor invalid parameter list", $file, $string, $end_type);
+		return false;
+	}
+
+	$colon_pos = strpos($string, ":", $close_brace_pos);
+	$sc_pos    = strpos($string, ";", $close_brace_pos);
+	$curly_pos = strpos($string, "{", $close_brace_pos);
+	if ($colon_pos !== false && ($sc_pos === false || $colon_pos < $sc_pos) && ($curly_pos === false || $colon_pos < $curly_pos)) {
+		for ($i=$colon_pos+1; $i<strlen($string); $i++) {
+			$i = skip_whitespace($string, $i);
+			if ($string[$i] == ';' || $string[$i] == '{') return $i;
+
+			$i = skip_ident_chars($string, $i);
+			$i = skip_whitespace($string, $i);
+			if ($string[$i] == '(' || $string[$i] == '{') $i = find_matching($string, $i)+1;
+			else {
+				if ($conf_verbosity>1) parser_error("invalid init list format (no brace)", "", $string, $i);
+				return false;
+			}
+			$i = skip_whitespace($string, $i);
+			if ($string[$i] != ',' && $string[$i] != ';' && $string[$i] != '{') {
+				if ($conf_verbosity>1) parser_error("invalid init list format (no comma)", "", $string, $i);
+				return false;
+			} else if ($string[$i] == ';' || $string[$i] == '{') $i--;
+		}
+	}
+	return $pos;
 }
 
 
@@ -114,9 +176,12 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 
 	$symbols = array();
 
+	// Remove comments from code
+	$sourcecode = preg_replace("|//.*?\n|", "", $sourcecode);
+	$sourcecode = preg_replace("|/\*.*?\*/|", "", $sourcecode);
+
 	$lineno=1;
 	for ($i=0; $i<strlen($sourcecode); $i++) {
-		// Skip whitespace
 		$i = skip_whitespace($sourcecode, $i);
 		if ($i==strlen($sourcecode)) break;
 		
@@ -126,16 +191,16 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 			
 			// If valid identifier doesn't follow, syntax error
 			if (!ident_char($sourcecode[$i])) {
-				if ($conf_verbosity>1) print "extract_global_symbols(): syntax error in $file:$i: invalid symbol after #define: ".$sourcecode[$i]."\n";
+				if ($conf_verbosity>1) parser_error("invalid symbol after #define: ".$sourcecode[$i], $file, $sourcecode, $i);
 				break;
 			}
 			
 			$define_begin = $i;
 			$i = skip_ident_chars($sourcecode, $i);
 			$define_name = substr($sourcecode, $define_begin, $i-$define_begin);
+			if ($conf_verbosity>2) print "Define $define_name\n";
 			array_push($symbols, $define_name);
 			
-			// Skip to newline
 			$i = skip_to_newline($sourcecode, $i);
 			continue;
 		}
@@ -146,7 +211,7 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 			
 			// If a valid identifier doesn't follow the keyword, syntax error
 			if (!ident_char($sourcecode[$i])) {
-				if ($conf_verbosity>1) print "extract_global_symbols(): syntax error in $file:$i: invalid symbol after class/struct: ".$sourcecode[$i]."\n";
+				if ($conf_verbosity>1) parser_error("invalid symbol after class/struct: ".$sourcecode[$i], $file, $sourcecode, $i);
 				break;
 			}
 			
@@ -160,7 +225,7 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 			
 			// there is neither curly nor semicolon, syntax error
 			if ($curly_pos === false && $sc_pos === false) {
-				if ($conf_verbosity>1) print "extract_global_symbols(): syntax error in $file:$i: neither ; nor { after class/struct\n";
+				if ($conf_verbosity>1) parser_error("neither ; nor { after class/struct", $file, $sourcecode, $i);
 				break;
 			}
 
@@ -169,12 +234,13 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 				continue;
 			}
 			
+			if ($conf_verbosity>2) print "Class $class_name\n";
 			array_push($symbols, $class_name);
 			
 			// Skip to end of block
 			$i = find_matching($sourcecode, $curly_pos);
 			if ($i==strlen($sourcecode)) {
-				if ($conf_verbosity>1) print "extract_global_symbols(): syntax error in $file:$curly_pos: missing closed curly\n";
+				if ($conf_verbosity>1) parser_error("missing closed curly", $file, $sourcecode, $curly_pos);
 				break;
 			}
 		}
@@ -191,7 +257,7 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 			// Skip to end of comment
 			$eoc = strpos($sourcecode, "*/", $i);
 			if ($eoc === false) {
-				if ($conf_verbosity>1) print "extract_global_symbols(): syntax error in $file:$i: C-style comment doesn't end\n";
+				if ($conf_verbosity>1) parser_error("C-style comment doesn't end", $file, $sourcecode, $i);
 				break;
 			}
 			$i = $eoc+2;
@@ -202,7 +268,7 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 			// Skip to semicolon
 			$sc_pos = strpos($sourcecode, ";", $i);
 			if ($sc_pos === false) {
-				if ($conf_verbosity>1) print "extract_global_symbols(): syntax error in $file:$i: missing semicolon after using\n";
+				if ($conf_verbosity>1) parser_error("missing semicolon after 'using'", $file, $sourcecode, $i);
 				break;
 			}
 			$i = $sc_pos+1;
@@ -216,22 +282,34 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 				if ($i === false) break;
 			} else {
 				// No template after "template" keyword? syntax error
-				if ($conf_verbosity>1) print "extract_global_symbols(): syntax error in $file:$i: no template after 'template' keyword: ".$sourcecode[$i]."\n";
+				if ($conf_verbosity>1) parser_error("no template after 'template' keyword: ".$sourcecode[$i], $file, $sourcecode, $i);
 				break;
 			}
 		}
 		
-		// The rest is likely an identifier of some kind in global scope - we want that
+		// The rest is likely an identifier of some kind in global scope - we want that!
 		if (ident_char($sourcecode[$i])) {
 			// Skip keyword const
 			if (substr($sourcecode, $i, 5) == "const")
 				$i = skip_whitespace($sourcecode, $i+5); 
 
 			// skip type
-			$start_ns = $end_ns = -1;
-			$start_type = $i;
-			$i = skip_ident_chars($sourcecode, $i);
-			$end_type = $i;
+			$multiword = array("long double", "unsigned int", "unsigned long", "short int", "unsigned short"); // TODO add others
+			$found = false;
+			foreach($multiword as $type) 
+				if (strlen($sourcecode)>$i+strlen($type) && substr($sourcecode, $i, strlen($type)) == $type) {
+					$found = true;
+					$start_type = $i;
+					$i += strlen($type);
+					$end_type = $i;
+					break;
+				}
+			if (!$found) {
+				$start_ns = $end_ns = -1;
+				$start_type = $i;
+				$i = skip_ident_chars($sourcecode, $i);
+				$end_type = $i;
+			}
 			$i = skip_whitespace($sourcecode, $i); 
 			
 			// skip template as part of type
@@ -272,17 +350,48 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 				$ident_name = substr($sourcecode, $ident_begin, $i-$ident_begin);
 				$i = skip_whitespace($sourcecode, $i); 
 			
-				if ($sourcecode[$i] == "<" || $sourcecode[$i] == ":") {
+				if ($sourcecode[$i] == "<" && $ident_name !== "operator" || $sourcecode[$i] == ":") {
 					// This is a class method
+					$class_name = $ident_name;
+
+					// Find method name (used just for debugging msgs)
+					if ($sourcecode[$i] == "<") $i = find_matching($sourcecode, $i)+1;
+					if ($i !== false && $i < strlen($sourcecode)-1) {
+						if ($sourcecode[$i] == ":") $i += 2;
+						$ident_begin = $i;
+						if ($sourcecode[$i] == "~") $i++;
+						$i = skip_ident_chars($sourcecode, $i);
+						$ident_name = substr($sourcecode, $ident_begin, $i-$ident_begin);
+					}
+
+					if ($conf_verbosity>2) print "Skip class method $class_name::$ident_name\n";
 				} else {
+					if ($conf_verbosity>2) print "Ident $ident_name\n";
 					array_push($symbols, $ident_name);
 				}
 			} else {
-				// this is not actually identifier!?
-				// FIXME also external constructor and destructor, but not relevant right now
+				// This catches two cases not handled with above code
+				// where ident would be detected as "type" and type as "namespace"
+
+				if ($sourcecode[$start_type] == "~") // Destructor
+					$end_type = skip_ident_chars($sourcecode, $start_type+1);
 				$ident_name = substr($sourcecode, $start_type, $end_type-$start_type);
+				
+				// Typeless idents (possible...)
 				if ($start_ns == -1) {
+					if ($conf_verbosity>2) print "Typeless ident $ident_name\n";
 					array_push($symbols, $ident_name);
+
+				// Ctor, dtor and such
+				} else {
+					$class_name = substr($sourcecode, $start_ns, $end_ns-$start_ns);
+					if ($conf_verbosity>2) print "Skip ctor-like ident $class_name::$ident_name\n";
+
+					// In case of constructor, we need to skip the initialization list
+					// This wouldn't be neccessary if not for C++11 style initializers using curly braces e.g.
+					// MyClass::MyClass() : attribute{value}, attribute{value} { /* Actual ctor code */ }
+					$i = skip_constructor($sourcecode, $end_type);
+					if ($i === false) break;
 				}
 			}
 			
@@ -292,16 +401,16 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 			
 			// there is neither curly nor semicolon, syntax error
 			if ($curly_pos === false && $sc_pos === false) {
-				if ($conf_verbosity>1) print "extract_global_symbols(): syntax error in $file:$i: neither ; nor { after identifier\n";
+				if ($conf_verbosity>1) parser_error("neither ; nor { after identifier", $file, $sourcecode, $i);
 				break;
 			}
 
-			if ($curly_pos === false || ($sc_pos !== false && $sc_pos < $curly_pos))
+			else if ($curly_pos === false || ($sc_pos !== false && $sc_pos < $curly_pos))
 				$i = $sc_pos;
 			else
 				$i = find_matching($sourcecode, $curly_pos);
 			if ($i==strlen($sourcecode)) {
-				if ($conf_verbosity>1) print "extract_global_symbols(): syntax error in $file:$curly_pos: missing closed curly\n";
+				if ($conf_verbosity>1) parser_error("missing closed curly", $file, $sourcecode, $curly_pos);
 				break;
 			}
 		}
