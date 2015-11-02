@@ -77,20 +77,32 @@ function clear_unicode($text)
 function json_request($url, $parameters, $method = "GET") 
 {
 	global $conf_verbosity;
+	
+	$disableSslCheck = array(
+		'ssl' => array(
+			"verify_peer"=>false,
+			"verify_peer_name"=>false,
+		),
+	);  
 
 	$allowed_http_codes = array ("200"); // Only 200 is allowed
 
 	$query = http_build_query($parameters);
 	
 	if ($method == "GET") 
-		$http_result = @file_get_contents("$url?$query");
+		$http_result = @file_get_contents("$url?$query", false, stream_context_create($disableSslCheck));
 	else {
 		$params = array('http' => array(
 			'method' => 'POST',
 			'content' => $query,
 			'header' => "Content-Type: application/x-www-form-urlencoded\r\n" .
 				"Content-Length: " . strlen ( $query ) . "\r\n"
-			));
+			),
+			'ssl' => array(
+				"verify_peer"=>false,
+				"verify_peer_name"=>false,
+			),
+		);
 		$ctx = stream_context_create($params);
 		$fp = fopen($url, 'rb', false, $ctx);
 		if (!$fp) {
@@ -152,7 +164,9 @@ function json_query($action, $parameters = array(), $method = "GET")
 {
 	global $conf_json_base_url, $session_id, $conf_verbosity;
 
-	$url = $conf_json_base_url."buildservice.php"; // FIXME make RESTful
+	$url = $conf_json_base_url;
+	if (!ends_with($url, "/")) $url .= "/";
+	$url .= "buildservice.php"; // FIXME make RESTful
 	$parameters['action'] = $action;
 
 	if ($session_id !== "")
@@ -175,7 +189,9 @@ function json_login()
 {
 	global $conf_json_base_url, $conf_json_user, $conf_json_pass;
 
-	$url = $conf_json_base_url."auth.php";  // FIXME make RESTful
+	$url = $conf_json_base_url;
+	if (!ends_with($url, "/")) $url .= "/";
+	$url .= "auth.php"; // FIXME make RESTful
 
 	$data = array("login" => $conf_json_user, "pass" => $conf_json_pass);
 	$result = json_request_retry ($url, $data, "POST");
@@ -191,7 +207,10 @@ function json_get_binary_file($filename, $action, $parameters = array(), $method
 {
 	global $conf_json_base_url, $session_id;
 
-	$url = $conf_json_base_url."buildservice.php"; // FIXME make RESTful
+	$url = $conf_json_base_url;
+	if (!ends_with($url, "/")) $url .= "/";
+	$url .= "buildservice.php"; // FIXME make RESTful
+
 	$parameters['action'] = $action;
 	if ($session_id !== "")
 		$parameters[session_name()] = $session_id;
@@ -200,14 +219,26 @@ function json_get_binary_file($filename, $action, $parameters = array(), $method
 
 	if ($method === "GET") {
 		$url = "$url?$query";
-		$params = array( 'http' => array( 'method' => "GET" ) );
+		$params = array( 
+			'http' => array( 'method' => "GET" ), 
+			'ssl' => array(
+				"verify_peer"=>false,
+				"verify_peer_name"=>false,
+			),
+		);
 	} else {
-		$params = array('http' => array(
-			'method' => $method,
-			'content' => $query,
-			'header' => "Content-Type: application/x-www-form-urlencoded\r\n" .
-				"Content-Length: " . strlen ( $query ) . "\r\n"
-			));
+		$params = array(
+			'http' => array(
+				'method' => $method,
+				'content' => $query,
+				'header' => "Content-Type: application/x-www-form-urlencoded\r\n" .
+					"Content-Length: " . strlen ( $query ) . "\r\n"
+			),
+			'ssl' => array(
+				"verify_peer"=>false,
+				"verify_peer_name"=>false,
+			),
+		);
 	}
 	$ctx = stream_context_create($params);
 	$fp = fopen($url, 'rb', false, $ctx);
