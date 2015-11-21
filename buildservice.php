@@ -224,7 +224,7 @@ function do_run($filelist, $exe_file, $params, $compiler, $compiler_options, $in
 		$run_result['status'] = EXECUTION_TIMEOUT;
 	}
 	
-	if ($filename = glob("$cwd/core.*")) {
+	if ($filename = glob("$cwd/core*")) {
 		if ($conf_verbosity>0) print "- Crashed (".$filename[0].")\n";
 		$run_result['status'] = EXECUTION_CRASH;
 		$run_result['core'] = $filename[0];
@@ -247,7 +247,7 @@ function do_debug($exe_file, $debugger, $coredump, $filelist, $instance)
 	$opts_core = str_replace( "COREFILE", $coredump, $debugger['opts_core'] );
 	$cmd = "cd $cwd; ".$debugger['path']." ".$debugger['local_opts']." ".$opts_core." $exe_file";
 	exec($cmd, $output);
-
+	
 	$debug_result = array();
 	// Remove illegal and harmful unicode characters from output
 	$debug_result['output'] = clear_unicode(join("\n", $output));
@@ -275,14 +275,22 @@ function do_profile($exe_file, $profiler, $filelist, $params, $instance)
 	$profiler_log_file = instance_path($instance) . "/".basename($exe_file)."_profiler_log.txt";
 	
 	if ($conf_verbosity>0) print "Profiling ".basename($exe_file)."...\n";
+
+	$stdin_file    = instance_path($instance) . "/buildservice_stdin.txt";
+	$stderr_file   = instance_path($instance) . "/buildservice_stderr.txt";
+	$stdout_file   = instance_path($instance) . "/buildservice_stdout.txt";
 	
 	// Do it!
+	$descriptorspec = array(
+		0 => array("pipe", "r"),  // stdin is a pipe that the child will read from
+		1 => array("pipe", "w"),  // stdout is a pipe that the child will write to
+		2 => array("file", $stderr_file, "a") // stderr is a file to write to
+	);
+
 	$cwd = instance_path($instance);
+	$env = array();
 	$optslog = str_replace("LOGFILE", $profiler_log_file, $profiler["opts_log"]);
 	$cmd = $profiler["path"]." ".$profiler["local_opts"]." ".$optslog." $exe_file";
-	
-	// NOT TESTED
-	//$process = proc_open("ulimit -c 1000000 -t ".($params['timeout'])."; $cmd", $descriptorspec, $pipes, $cwd, $env);
 	
 	// Redirect output cause it's combined program and profiler output
 	// We will get just the profiler output from $profiler_log_file
@@ -300,15 +308,35 @@ function do_profile($exe_file, $profiler, $filelist, $params, $instance)
 	if (array_key_exists("stdin", $params) && strlen($params['stdin']) > 0) {
 		$stdin_name = instance_path($instance) . "/" . basename($exe_file) . "_stdin.txt";
 		file_put_contents( $stdin_name, $params['stdin'] . "\n" );
-		$cmd .= "< $stdin_name";
+		//$cmd .= "< $stdin_name";
 	}
 	
-	$cmd = "cd $cwd; $cmd &> $cwd/null; echo $!";
-	
-	exec($cmd, $blah);
-	$pid = (int)$blah[0]-1; // First one is ulimit, but for some reason valgrind uses that!?
+	// NOT TESTED
+	$process = proc_open($cmd, $descriptorspec, $pipes, $cwd, $env);
 
 	$profile_result = array();
+
+	if (is_resource($process)) {
+		$statusar = proc_get_status($process);
+		$pid = $statusar['pid']+1; // first one is ulimit...
+		print "PID: $pid\n";
+		
+		fwrite($pipes[0], $params['stdin']);
+		fclose($pipes[0]);
+		
+		// stream_get_contents will get stuck until program ends
+		$start_time = time();
+		$stdout = stream_get_contents($pipes[1], $conf_max_program_output+10);
+		$duration = time() - $start_time;
+		
+		file_put_contents($stdout_file, $stdout);
+		fclose($pipes[1]);
+	} else {
+		if ($conf_verbosity>0) print "Not a resource\n";
+		$profile_result['status'] = PROFILER_FAIL;
+		return $profile_result;
+	}
+
 	$joutput = file_get_contents($profiler_log_file, false, NULL, -1, $conf_max_program_output);
 	unlink ($profiler_log_file);
 	$output = explode("\n", $joutput);
@@ -603,16 +631,18 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 			return $test_result;
 		}
 
-		// Remove invisible spaces and empty lines
+		$test_result['run_result']['output'] = $program_output;
+
+		// Don't fail test because of invisible spaces and empty lines
 		$program_output = preg_replace("/\s+\n/", "\n", $program_output);
 		$program_output = trim( preg_replace("/\n+/", "\n", $program_output) );
-		$test_result['run_result']['output'] = $program_output;
 
 		// Ignore whitespace
 		if ($test['ignore_whitespace'] === "true") {
-			$program_output = preg_replace("/s+/", "", $program_output);
+			$program_output = str_replace("\n", "", $program_output);
+			$program_output = preg_replace("/\s+/", "", $program_output);
 			foreach ($test['expected'] as &$ex)
-				$ex = preg_replace("/s+/", "", $ex);
+				$ex = preg_replace("/\s+/", "", $ex);
 		}
 
 		// Look for expected outputs in program output
