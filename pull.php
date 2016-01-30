@@ -31,7 +31,7 @@ require_once("buildservice.php");
 
 
 // Command line params 
-echo "pull.php\nCopyright (c) 2014,2015 Vedran Ljubović\nElektrotehnički fakultet Sarajevo\nLicensed under GNU GPL v3\n\n";
+echo "pull.php\nCopyright (c) 2014-2016 Vedran Ljubović\nElektrotehnički fakultet Sarajevo\nLicensed under GNU GPL v3\n\n";
 
 $taskid = $progid = $wait_secs = 0;
 
