@@ -370,8 +370,12 @@ function task_info($taskid) {
 
 function fetch_task($taskid, $filename) {
 	$task = json_query("getTaskData", array("task" => $taskid));
-	file_put_contents($filename, json_encode($task));
-	print "\nTask '".$task['name']."' written to file '".$filename."'\n\n";
+	if (!$task)
+		print "\nError: Unkown task $taskid\n";
+	else {
+		file_put_contents($filename, json_encode($task));
+		print "\nTask '".$task['name']."' written to file '".$filename."'\n\n";
+	}
 }
 
 function fetch_progs($taskid, $path) {
