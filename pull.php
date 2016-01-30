@@ -33,7 +33,7 @@ require_once("buildservice.php");
 // Command line params 
 echo "pull.php\nCopyright (c) 2014,2015 Vedran Ljubović\nElektrotehnički fakultet Sarajevo\nLicensed under GNU GPL v3\n\n";
 
-$taskid = $progid = 0;
+$taskid = $progid = $wait_secs = 0;
 
 if ($argc > 1) 
 	parse_arguments($argc, $argv);
@@ -55,11 +55,16 @@ if ($taskid != 0)
 else {
 	// Process tasks with pending programs until none are left
 	do {
-		// Next task
-		$result = json_query("nextTask");
-		if (is_array($result) && $result['id'] !== "false")
-			process_task($result['id']);
-	} while (is_array($result) && $result['id'] !== "false");
+		do {
+			// Next task
+			$result = json_query("nextTask");
+			if (is_array($result) && $result['id'] !== "false")
+				process_task($result['id']);
+		} while (is_array($result) && $result['id'] !== "false");
+		if ($wait_secs == 0) break;
+		if ($conf_verbosity>0) print "\nWaiting $wait_secs seconds.\n";
+		sleep($wait_secs);
+	} while(true);
 }
 
 if ($conf_verbosity>0) print "Finished.\n";
@@ -244,6 +249,7 @@ Usage:	php pull.php PARAMS
 
 Available PARAMS are:
  (none)			Process all unfinished programs in all available tasks
+ wait SECONDS		Don't end when there are no more tasks
  TASKID			Process all unfinished programs in task TASKID
  TASKID PROGID		Process program PROGID in task TASKID
  list-tasks		List all tasks available to current user
@@ -260,7 +266,7 @@ Available PARAMS are:
 
 
 function parse_arguments($argc, $argv) {
-	global $taskid, $progid;
+	global $taskid, $progid, $wait_secs;
 
 	// Display help
 	if ($argc == 1 || in_array("help", $argv) || in_array("--help", $argv) || in_array("-h", $argv)) {
@@ -277,7 +283,7 @@ function parse_arguments($argc, $argv) {
 
 	// Commands that take one param
 	$pi = 0;
-	if (($pi = array_search("list-progs", $argv)) || ($pi = array_search("prog-info", $argv)) || ($pi = array_search("task-info", $argv))) {
+	if (($pi = array_search("list-progs", $argv)) || ($pi = array_search("prog-info", $argv)) || ($pi = array_search("task-info", $argv)) || ($pi = array_search("wait", $argv))) {
 		if ($pi == 1) $ii = 2; else $ii = 1;
 		if ($argc < 3) {
 			print "Error: ".$argv[$pi]." takes exactly one parameter.\n\n";
@@ -285,6 +291,7 @@ function parse_arguments($argc, $argv) {
 		} else if (!is_numeric($argv[$ii]))
 			print "Error: ID is an integer.\n\n";
 		else {
+			if ($argv[$pi] == "wait") { $wait_secs = $argv[$ii]; return; }
 			authenticate();
 			if ($argv[$pi] == "list-progs") list_progs($argv[$ii]);
 			if ($argv[$pi] == "prog-info") prog_info($argv[$ii]);
