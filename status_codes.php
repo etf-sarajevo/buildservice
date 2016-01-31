@@ -24,6 +24,7 @@ define("PROGRAM_COMPILE_ERROR",        3);
 define("PROGRAM_FINISHED_TESTING",     4);
 // define("PROGRAM_GRADED",               5); // Not actually used
 define("PROGRAM_NO_SOURCES_FOUND",     6);
+define("PROGRAM_CURRENTLY_TESTING",    7);
 
 // Names
 $global_status_codes = array("", "Awaiting tests", "Plagiarized", "Compile error", "Finished testing", "Graded", "No sources found");

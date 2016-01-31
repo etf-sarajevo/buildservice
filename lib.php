@@ -162,11 +162,9 @@ function json_request_retry($url, $parameters, $method = "GET")
 // Simulate SQL query with json
 function json_query($action, $parameters = array(), $method = "GET") 
 {
-	global $conf_json_base_url, $session_id, $conf_verbosity;
+	global $conf_push_url, $session_id, $conf_verbosity;
 
-	$url = $conf_json_base_url;
-	if (!ends_with($url, "/")) $url .= "/";
-	$url .= "buildservice.php"; // FIXME make RESTful
+	$url = $conf_push_url; // FIXME make RESTful
 	$parameters['action'] = $action;
 
 	if ($session_id !== "")
@@ -187,11 +185,9 @@ function json_query($action, $parameters = array(), $method = "GET")
 
 function json_login() 
 {
-	global $conf_json_base_url, $conf_json_user, $conf_json_pass;
+	global $conf_auth_url, $conf_json_user, $conf_json_pass;
 
-	$url = $conf_json_base_url;
-	if (!ends_with($url, "/")) $url .= "/";
-	$url .= "auth.php"; // FIXME make RESTful
+	$url = $conf_auth_url; // FIXME make RESTful
 
 	$data = array("login" => $conf_json_user, "pass" => $conf_json_pass);
 	$result = json_request_retry ($url, $data, "POST");
@@ -205,11 +201,9 @@ function json_login()
 
 function json_get_binary_file($filename, $action, $parameters = array(), $method = "GET") 
 {
-	global $conf_json_base_url, $session_id;
+	global $conf_push_url, $session_id;
 
-	$url = $conf_json_base_url;
-	if (!ends_with($url, "/")) $url .= "/";
-	$url .= "buildservice.php"; // FIXME make RESTful
+	$url = $conf_push_url; // FIXME make RESTful
 
 	$parameters['action'] = $action;
 	if ($session_id !== "")
