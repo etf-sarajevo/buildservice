@@ -218,7 +218,11 @@ function ws_parse_arguments() {
 	if ($action == "setTask") return setTask( json_decode($_REQUEST['task'], true) );
 	// File must be uploaded to webservice
 	if ($action == "addProgram") return addProgram(intval($_REQUEST['task']), $_REQUEST['name'], $_FILES['program']['tmp_name']);
-	if ($action == "getProgramStatus") return getProgramStatus(intval($_REQUEST['program']));
+	if ($action == "getProgramStatus") {
+		$msg = ok('');
+		$msg['status'] = getProgramStatus(intval($_REQUEST['program']));
+		return $msg;
+	}
 	if ($action == "deleteProgram") return deleteProgram(intval($_REQUEST['program']));
 }
 
