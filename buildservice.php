@@ -126,6 +126,10 @@ function do_compile($filelist, $exe_file, $compiler, $options, $instance)
 	$k = exec($cmd, $output, $return);
 
 	$compile_result['output'] = clear_unicode( join("\n", $output) );
+	
+	// Absurdly long compile output (can happen with e.g. infinitely recursive templates)
+	if (strlen($compile_result['output']) > 100000)
+		$compile_result['output'] = substr($compile_result['output'], 0, 100000);
 
 	// Parse output, if plugin available
 	if (array_key_exists($compiler['name'], $compiler_plugin))
