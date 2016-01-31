@@ -397,10 +397,11 @@ function addProgram($taskid, $progname, $progfile) {
 	
 	// Use MD5 hash do detect if this is a readding
 	$md5 = md5_file($progfile);
+	$taskmd5 = md5_file($taskpath);
 	$md5file = $conf_basepath . "/md5sums";
 	if (file_exists($md5file)) foreach(file($md5file) as $line) {
-		list($progid, $some_md5) = explode(" ", trim($line));
-		if ($md5 == $some_md5) {
+		list($progid, $some_md5, $some_taskmd5) = explode(" ", trim($line));
+		if ($md5 == $some_md5 && $taskmd5 == $some_taskmd5) {
 			$msg['data']['id'] = $progid;
 			return $msg;
 		}
@@ -429,7 +430,7 @@ function addProgram($taskid, $progname, $progfile) {
 	array_push($queue, $qitem);
 	lock();
 	writeQueue($queue);
-	file_put_contents($md5file, "$progid $md5\n", FILE_APPEND | LOCK_EX);
+	file_put_contents($md5file, "$progid $md5 $taskmd5\n", FILE_APPEND | LOCK_EX);
 	unlock();
 	
 	$msg['data']['id'] = $progid;
