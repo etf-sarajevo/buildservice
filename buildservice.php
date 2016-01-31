@@ -111,7 +111,7 @@ function parse_compiler_line($cmd, $compiler, $exe_file, $options, $filelist)
 // Perform compilation
 function do_compile($filelist, $exe_file, $compiler, $options, $instance)
 {
-	global $compiler_plugin, $conf_verbosity;
+	global $compiler_plugin, $conf_verbosity, $conf_nice;
 
 	if ($conf_verbosity>0) print "Compiling ".basename($exe_file)."...\n";
 	
@@ -122,6 +122,8 @@ function do_compile($filelist, $exe_file, $compiler, $options, $instance)
 	// Do it!
 	$cmd = parse_compiler_line($compiler['cmd_line'], $compiler, $exe_file, $options, $filelist);
 	$cmd .= " 2>&1";
+	if (isset($conf_nice))
+		$cmd = "nice -n $conf_nice $cmd";
 
 	$k = exec($cmd, $output, $return);
 
@@ -158,7 +160,7 @@ function do_compile($filelist, $exe_file, $compiler, $options, $instance)
 // Execute program with predefined input using profiler and debugger as neccessary
 function do_run($filelist, $exe_file, $params, $compiler, $compiler_options, $instance)
 {
-	global $conf_max_program_output, $conf_verbosity;
+	global $conf_max_program_output, $conf_verbosity, $conf_nice;
 
 	$stdin_file    = instance_path($instance) . "/buildservice_stdin.txt";
 	$stderr_file   = instance_path($instance) . "/buildservice_stderr.txt";
@@ -179,6 +181,9 @@ function do_run($filelist, $exe_file, $params, $compiler, $compiler_options, $in
 	
 	// Use compiler['exe_line'] as command line for execution
 	$cmd = parse_compiler_line($compiler['exe_line'], $compiler, $exe_file, $compiler_options, $filelist);
+
+	if (isset($conf_nice))
+		$cmd = "nice -n $conf_nice $cmd";
 
 	// Parse various execution params
 	if (array_key_exists("timeout", $params) && $params['timeout'] > 0)
@@ -242,14 +247,17 @@ function do_run($filelist, $exe_file, $params, $compiler, $compiler_options, $in
 // Execute debugger on given core dump file
 function do_debug($exe_file, $debugger, $coredump, $filelist, $instance)
 {
-	global $debugger_plugin, $conf_verbosity;
+	global $debugger_plugin, $conf_verbosity, $conf_nice;
 
 	if ($conf_verbosity>0) print "Debugging ".basename($exe_file)."...\n";
 	
 	// Do it!
 	$cwd = instance_path($instance);
 	$opts_core = str_replace( "COREFILE", $coredump, $debugger['opts_core'] );
-	$cmd = "cd $cwd; ".$debugger['path']." ".$debugger['local_opts']." ".$opts_core." $exe_file";
+	$cmd = $debugger['path']." ".$debugger['local_opts']." ".$opts_core." $exe_file";
+	if (isset($conf_nice))
+		$cmd = "nice -n $conf_nice $cmd";
+	$cmd = "cd $cwd; $cmd";
 	exec($cmd, $output);
 	
 	$debug_result = array();
@@ -274,7 +282,7 @@ function do_debug($exe_file, $debugger, $coredump, $filelist, $instance)
 // Execute profiler on given executable
 function do_profile($exe_file, $profiler, $filelist, $params, $instance)
 {
-	global $conf_max_program_output, $profiler_plugin, $conf_verbosity;
+	global $conf_max_program_output, $profiler_plugin, $conf_verbosity, $conf_nice;
 
 	$profiler_log_file = instance_path($instance) . "/".basename($exe_file)."_profiler_log.txt";
 	
@@ -295,6 +303,9 @@ function do_profile($exe_file, $profiler, $filelist, $params, $instance)
 	$env = array();
 	$optslog = str_replace("LOGFILE", $profiler_log_file, $profiler["opts_log"]);
 	$cmd = $profiler["path"]." ".$profiler["local_opts"]." ".$optslog." $exe_file";
+	
+	if (isset($conf_nice))
+		$cmd = "nice -n $conf_nice $cmd";
 	
 	// Redirect output cause it's combined program and profiler output
 	// We will get just the profiler output from $profiler_log_file
