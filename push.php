@@ -178,7 +178,10 @@ function ws_parse_arguments() {
 	if ($action == "listPrograms") return listPrograms(intval($_REQUEST['task']));
 	if ($action == "getCurrent") return getCurrent();
 
-	if ($action == "nextTask") return nextTask();
+	if ($action == "nextTask") if (isset($_REQUEST['previousTask']))
+		return nextTask(intval($_REQUEST['previousTask']));
+	else
+		return nextTask(0);
 	if ($action == "assignProgram") return assignProgram(intval($_REQUEST['task']), json_decode($_REQUEST['buildhost'], true));
 	if ($action == "setProgramStatus") {
 		$program = intval($_REQUEST['program']);
@@ -530,12 +533,20 @@ function getCurrent() {
 
 
 // Get task ID for next program in queue
-function nextTask() {
+function nextTask($previousTask) {
 	$msg = ok('');
 	$queue = readQueue();
 	if (empty($queue))
 		$msg['data']['id'] = "false";
-	else {
+	else if (intval($previousTask) == 0) {
+		$qitem = array_shift($queue);
+		$msg['data']['id'] = $qitem['task'];
+	} else {
+		do {
+			$qitem = array_shift($queue);
+		} while ($qitem['task'] != $previousTask && !empty($queue));
+		if (empty($queue)) 
+			$queue = readQueue();
 		$qitem = array_shift($queue);
 		$msg['data']['id'] = $qitem['task'];
 	}

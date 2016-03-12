@@ -55,14 +55,17 @@ if ($taskid != 0)
 else {
 	// Process tasks with pending programs until none are left
 	do {
+		$previousTask = 0;
 		do {
 			// Next task
-			$result = json_query("nextTask");
-			if (is_array($result) && $result['id'] !== "false")
+			$result = json_query("nextTask", array("previousTask" => $previousTask) );
+			if (is_array($result) && $result['id'] !== "false") {
 				process_task($result['id']);
+				$previousTask = $result['id'];
+			}
 		} while (is_array($result) && $result['id'] !== "false");
 		if ($wait_secs == 0) break;
-		if ($conf_verbosity>0) print "\nWaiting $wait_secs seconds.\n";
+		if ($conf_verbosity>1) print "\nWaiting $wait_secs seconds.\n";
 		sleep($wait_secs);
 	} while(true);
 }
@@ -78,9 +81,12 @@ function process_task($taskid, $progid = 0) {
 	global $conf_verbosity, $buildhost_description;
 	// Get task data
 	$task = json_query("getTaskData", array("task" => $taskid));
+	if (!array_key_exists('name', $task)) $task['name'] = "";
 	if ($conf_verbosity>0) print "Task ($taskid): ".$task['name']."\n";
 
-	$compiler = find_best_compiler($task['language'], $task['required_compiler'], $task['preferred_compiler'], $task['compiler_features']);
+	$compiler = false;
+	if (array_key_exists('language', $task))
+		$compiler = find_best_compiler($task['language'], $task['required_compiler'], $task['preferred_compiler'], $task['compiler_features']);
 	if ($compiler === false) {
 		if ($conf_verbosity>0) print "No suitable compiler found for task ".$task['name'].".\n";
 		if ($conf_verbosity>1) {
