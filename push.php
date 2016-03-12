@@ -397,8 +397,8 @@ function updateProgramStatus($progid, $key, $value) {
 function addProgram($taskid, $progname, $progfile) {
 	global $conf_basepath;
 	$taskpath = $conf_basepath . "/tasks/$taskid";
-	if (!file_exists($taskpath)) return error('ERR002', 'File not found'); // Unknown task
-	if (!file_exists($progfile)) return error('ERR002', 'File not found');
+	if (!file_exists($taskpath)) return error('ERR002', 'File not found task '.$taskpath); // Unknown task
+	if (!file_exists($progfile)) return error('ERR002', 'File not found program '.$progfile);
 
 	$msg = ok('');
 	
