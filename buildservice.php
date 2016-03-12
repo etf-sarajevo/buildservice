@@ -561,6 +561,12 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	if ($compile_result['status'] !== COMPILE_SUCCESS) {
 		$test_result['status'] = TEST_COMPILE_FAILED;
 		if ($conf_verbosity>0) print "- test ".$test['id']." failed - compile error\n";
+	
+		// Adjust filenames and line numbers that were changed for the test
+		foreach ($test_result['compile_result']['parsed_output'] as &$msg) {
+			if (instance_path($instance) . "/" . $msg['file'] === $adjustment_data['new_filename'])
+				test_adjust_lines($msg['file'], $msg['line'], $adjustment_data, $instance);
+		}
 		return $test_result;
 	}
 
