@@ -151,6 +151,7 @@ function json_request_retry($url, $parameters, $method = "GET")
 		print "... try $try ...\n";
 		$result = json_request($url, $parameters, $method);
 		$try++;
+		sleep(1);
 	} while ($result === FALSE && $try < $conf_json_max_retries);
 	if ($result === FALSE) {
 		print "Giving up after $try attempts... try again later!\n";
