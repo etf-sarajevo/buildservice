@@ -396,8 +396,20 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 			}
 			
 			// skip to semicolon or end of block, whichever comes first
-			$sc_pos    = strpos($sourcecode, ";", $i);
-			$curly_pos = strpos($sourcecode, "{", $i);
+			do {
+				$repeat = false;
+				$sc_pos    = strpos($sourcecode, ";", $i);
+				$curly_pos = strpos($sourcecode, "{", $i);
+				// BUT if curly is inside braces, skip that too
+				$open_brace_pos = strpos($sourcecode, "(", $i);
+				if ($open_brace_pos < $sc_pos && $open_brace_pos < $curly_pos) {
+					$i = find_matching($sourcecode, $open_brace_pos);
+					$repeat = true;
+				}
+			} while ($repeat);
+				
+			if ($open_brace_pos !== false && $curly_pos !== false && $curly_pos > $open_brace_pos && $curly_pos < $closed_brace_pos)
+				$curly_pos = strpos($sourcecode, "{", $closed_brace_pos);
 			
 			// there is neither curly nor semicolon, syntax error
 			if ($curly_pos === false && $sc_pos === false) {
