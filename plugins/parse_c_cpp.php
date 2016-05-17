@@ -407,9 +407,6 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 					$repeat = true;
 				}
 			} while ($repeat);
-				
-			if ($open_brace_pos !== false && $curly_pos !== false && $curly_pos > $open_brace_pos && $curly_pos < $closed_brace_pos)
-				$curly_pos = strpos($sourcecode, "{", $closed_brace_pos);
 			
 			// there is neither curly nor semicolon, syntax error
 			if ($curly_pos === false && $sc_pos === false) {
