@@ -179,7 +179,7 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 
 	// Remove comments from code
 	$sourcecode = preg_replace("|/\*.*?\*/|", "", $sourcecode);
-	$sourcecode = preg_replace("|//[^\*]*?\n|", "", $sourcecode);
+	$sourcecode = preg_replace("|//[^\*]*?\n|", "\n", $sourcecode);
 
 	$lineno=1;
 	for ($i=0; $i<strlen($sourcecode); $i++) {
@@ -258,7 +258,7 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 		}
 		
 		// Skip other preprocessor directives and C++-style comments
-		if ($sourcecode[$i] == "#" || substr($sourcecode, $i, 2) == "//") {
+		if ($sourcecode[$i] == "#" || $i<strlen($sourcecode)-1 && substr($sourcecode, $i, 2) == "//") {
 			// Skip to newline
 			$i = skip_to_newline($sourcecode, $i);
 			continue;
