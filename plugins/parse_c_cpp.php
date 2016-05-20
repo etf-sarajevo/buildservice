@@ -32,9 +32,10 @@ function find_matching($string, $pos)
 
 	$open_chr = $string[$pos];
 	if ($open_chr === "{") $closed_chr = "}";
-	if ($open_chr === "(") $closed_chr = ")";
-	if ($open_chr === "[") $closed_chr = "]";
-	if ($open_chr === "<") $closed_chr = ">";
+	else if ($open_chr === "(") $closed_chr = ")";
+	else if ($open_chr === "[") $closed_chr = "]";
+	else if ($open_chr === "<") $closed_chr = ">";
+	else $closed_chr = ")"; // This is surely an error, but at least avoid infinite loop
 	$level=0;
 	
 	for ($i=$pos; $i<strlen($string); $i++) {
@@ -402,7 +403,7 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 				$curly_pos = strpos($sourcecode, "{", $i);
 				// BUT if curly is inside braces, skip that too
 				$open_brace_pos = strpos($sourcecode, "(", $i);
-				if ($open_brace_pos < $sc_pos && $open_brace_pos < $curly_pos) {
+				if ($open_brace_pos && $open_brace_pos < $sc_pos && $open_brace_pos < $curly_pos) {
 					$i = find_matching($sourcecode, $open_brace_pos);
 					$repeat = true;
 				}
