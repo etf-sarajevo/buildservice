@@ -60,7 +60,7 @@ else {
 			// Next task
 			$result = json_query("nextTask", array("previousTask" => $previousTask) );
 			if (is_array($result) && $result['id'] !== "false") {
-				process_task($result['id']);
+				if (!process_task($result['id'])) break;
 				$previousTask = $result['id'];
 			}
 		} while (is_array($result) && $result['id'] !== "false");
@@ -94,7 +94,7 @@ function process_task($taskid, $progid = 0) {
 			if (!empty($task['compiler_features'])) print " Features: ".join(", ",$task['compiler_features']);
 			print "\n";
 		}
-		return;
+		return false;
 	}
 
 	// Find debugger & profiler
@@ -131,7 +131,7 @@ function process_task($taskid, $progid = 0) {
 		
 		process_program($task, $compiler, $debugger, $profiler, $progid);
 	}
-
+	return true;
 }
 
 
