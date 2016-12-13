@@ -555,7 +555,7 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 
 	// Compile test
 	$test_exe_file = instance_path($instance) . "/bs_test_".$test['id'];
-	$compile_result = do_compile($filelist, $test_exe_file, $compiler, $task['compiler_options_debug'], $instance);
+	$compile_result = do_compile($filelist, $test_exe_file, $compiler, $task['compiler_options_debug'] . " -m32", $instance);
 	$test_result['compile_result'] = $compile_result;
 
 	if ($compile_result['status'] !== COMPILE_SUCCESS) {
@@ -720,6 +720,7 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 
 	// Profile
 	if ($profiler && $task['profile'] === "true") {
+		global $conf_profilers;
 		$profile_result = do_profile($test_exe_file, $profiler, $filelist, $test['running_params'], $instance);
 		
 		// Adjust filenames and line numbers that were changed for the test
@@ -738,6 +739,26 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 			if ($test_result['status'] === TEST_SUCCESS) {
 				$test_result['status'] = TEST_PROFILER_ERROR;
 				if ($conf_verbosity>0) print "- test ".$test['id']." failed - profiler error\n";
+			}
+		} else if (count($conf_profilers) > 1) {
+			$profile_result = do_profile($test_exe_file, $conf_profilers[1], $filelist, $test['running_params'], $instance);
+			
+			foreach ($profile_result['parsed_output'] as &$msg) {
+				// Valgrind always returns just the base file name
+				if ( $msg['file'] === basename($adjustment_data['new_filename']) )
+					test_adjust_lines($msg['file'], $msg['line'], $adjustment_data, $instance);
+				if ( array_key_exists('file_alloced', $msg)
+				&& instance_path($instance) . "/" . $msg['file_alloced'] === $adjustment_data['new_filename'] )
+					test_adjust_lines($msg['file_alloced'], $msg['line_alloced'], $adjustment_data, $instance);
+			}
+
+			// If there are no errors, we will disregard profiler output
+			if ($profile_result['status'] !== PROFILER_OK) {
+				$test_result['profile_result'] = $profile_result;
+				if ($test_result['status'] === TEST_SUCCESS) {
+					$test_result['status'] = TEST_PROFILER_ERROR;
+					if ($conf_verbosity>0) print "- test ".$test['id']." failed - profiler 2 error\n";
+				}
 			}
 		}
 	}

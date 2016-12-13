@@ -155,6 +155,21 @@ $conf_profilers = array(
 		"local_opts" => "", // add options that need to be passed every time
 		"features" => array(),
 		// options to pass to create a logfile that will be analyzed later
+		"opts_log" => "--tool=exp-sgcheck --log-file=LOGFILE", 
+		//"opts_log" => "--leak-check=full --log-file-exact=LOGFILE",  // old valgrind
+		"timeout_ratio" => 2, // We expect valgrind to run twice as long as program alone
+		// valgrind needs a lot of ram to work, sometimes as much as 100 MB for simple "hello world" style programs
+		// We don't want to enforce usual memory limits but we also don't want misbehaving programs to crash our machine
+		// Put roughly half your RAM below (in kB)
+		"vmem_hard_limit" => 1000000,
+		"version_line" => "PATH --version",
+	),
+	array(
+		"name" => "valgrind",
+		"path" => "valgrind",
+		"local_opts" => "", // add options that need to be passed every time
+		"features" => array(),
+		// options to pass to create a logfile that will be analyzed later
 		"opts_log" => "--leak-check=full --log-file=LOGFILE", 
 		//"opts_log" => "--leak-check=full --log-file-exact=LOGFILE",  // old valgrind
 		"timeout_ratio" => 2, // We expect valgrind to run twice as long as program alone

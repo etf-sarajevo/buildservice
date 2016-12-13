@@ -34,6 +34,7 @@ function profiler_valgrind($profiler_output, $filelist, &$profile_result)
 		array ( "msg" => "are definitely lost", "status" => PROFILER_MEMLEAK), 
 		array ( "msg" => "Invalid free", "status" => PROFILER_INVALID_FREE), 
 		array ( "msg" => "Mismatched free", "status" => PROFILER_MISMATCHED_FREE), 
+		array ( "msg" => "Invalid write of size", "status" => PROFILER_OOB), 
 		array ( "msg" => "Invalid read of size", "status" => PROFILER_OOB), 
 	);
 	
