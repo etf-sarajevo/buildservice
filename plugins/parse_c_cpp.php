@@ -254,7 +254,8 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 				if ($conf_verbosity>1) parser_error("C-style comment doesn't end", $file, $sourcecode, $i);
 				break;
 			}
-			$i = $eoc+2;
+			$i = $eoc+1;
+			continue;
 		}
 		
 		// Skip other preprocessor directives and C++-style comments
@@ -341,7 +342,7 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 
 			// there could be characters: * & [] ^
 			$typechars = array("*", "&", "[", "]", "^");
-			while (in_array($sourcecode[$i], $typechars)) $i++;
+			while (in_array($sourcecode[$i], $typechars) && $i<strlen($sourcecode)) $i++;
 			$i = skip_whitespace($sourcecode, $i); 
 			
 			// here comes identifier
