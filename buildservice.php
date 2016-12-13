@@ -555,7 +555,7 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 
 	// Compile test
 	$test_exe_file = instance_path($instance) . "/bs_test_".$test['id'];
-	$compile_result = do_compile($filelist, $test_exe_file, $compiler, $task['compiler_options_debug'] . " -m32", $instance);
+	$compile_result = do_compile($filelist, $test_exe_file, $compiler, $task['compiler_options_debug'], $instance);
 	$test_result['compile_result'] = $compile_result;
 
 	if ($compile_result['status'] !== COMPILE_SUCCESS) {
