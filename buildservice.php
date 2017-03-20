@@ -440,8 +440,6 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 			}
 		}
 	}
-
-	// TODO symbol renaming
 	
 	// Construct a new source file with embedded test
 	$main_source_code = $main_filename = "";
@@ -462,6 +460,13 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 		while (array_key_exists($newname, $global_symbols)) $newname = "_$newname";
 		$newname = " $newname\${1}";
 		$main_source_code = preg_replace("/\smain(\W)/", $newname, $main_source_code);
+	}
+
+	// Symbol renaming
+	foreach ($test['replace_symbols'] as $sym) {
+		foreach($sym as $symbol => $replacement) {
+			$main_source_code = preg_replace("/(\W)$symbol(\W)/", "\${1}$replacement\${2}", $main_source_code);
+		}
 	}
 	
 	// Include files containing symbols we need
