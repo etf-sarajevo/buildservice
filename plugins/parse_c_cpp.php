@@ -53,11 +53,16 @@ function find_matching($string, $pos)
 			$i = $eoc+2;
 		}
 		if ($string[$i] == "'") {
-			$end = strpos($string, "'", $i+1);
+			$start = $i;
+			do {
+				$end = strpos($string, "'", $start+1);
+				$start = $end;
+			} while ($end && $string[$end-1] == "\\");
 			if ($end === false) {
 				if ($conf_verbosity>1) parser_error("unclosed char constant", "", $string, $i);
 				break;
 			}
+			if ($end - $i > 5) parser_error("too long char constant", "", $string, $i);
 			$i = $end;
 		}
 		if ($string[$i] == '"') {
@@ -138,9 +143,9 @@ function skip_constructor($string, $pos)
 	global $conf_verbosity;
 
 	$open_brace_pos = strpos($string, "(", $pos);
-	$close_brace_pos = find_matching($string, $open_brace_pos);
-	if ($close_brace_pos == strlen($string)) {
-		if ($conf_verbosity>1) parser_error("ctor invalid parameter list", $file, $string, $end_type);
+	if ($open_brace_pos) $close_brace_pos = find_matching($string, $open_brace_pos);
+	if (!$open_brace_pos || $close_brace_pos == strlen($string)) {
+		if ($conf_verbosity>1) parser_error("ctor invalid parameter list", "", $string, $pos);
 		return false;
 	}
 
@@ -314,6 +319,13 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 			}
 			$i = skip_whitespace($sourcecode, $i); 
 			
+			// handle stream ops as special case
+			if (substr($sourcecode, $i, 2) == "<<" || substr($sourcecode, $i, 2) == ">>") {
+				$i = strpos($sourcecode, ";", $i);
+				if (!$i) $i = strlen($sourcecode);
+				continue;
+			}
+			
 			// skip template as part of type
 			if ($sourcecode[$i] == "<") {
 				$i = skip_template($sourcecode, $i);
@@ -331,6 +343,13 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 				$i = skip_ident_chars($sourcecode, $i);
 				$end_type = $i;
 				$i = skip_whitespace($sourcecode, $i); 
+				
+				// handle stream ops as special case
+				if (substr($sourcecode, $i, 2) == "<<" || substr($sourcecode, $i, 2) == ">>") {
+					$i = strpos($sourcecode, ";", $i);
+					if (!$i) $i = strlen($sourcecode);
+					continue;
+				}
 
 				// skip template as part of type
 				if ($sourcecode[$i] == "<") {
