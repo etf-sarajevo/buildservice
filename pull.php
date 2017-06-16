@@ -55,13 +55,17 @@ if ($taskid != 0)
 else {
 	// Process tasks with pending programs until none are left
 	do {
-		$previousTask = 0;
+		$previousTasks = array();
 		do {
 			// Next task
-			$result = json_query("nextTask", array("previousTask" => $previousTask) );
+			if (empty($previousTasks))
+				$result = json_query("nextTask");
+			else
+				$result = json_query("nextTask", array("previousTask" => $previousTasks[0]) );
 			if (is_array($result) && $result['id'] !== "false") {
-				if (!process_task($result['id'])) break;
-				$previousTask = $result['id'];
+				process_task($result['id']);
+				if (in_array($result['id'], $previousTasks)) break;
+				array_unshift($previousTasks, $result['id']);
 			}
 		} while (is_array($result) && $result['id'] !== "false");
 		if ($wait_secs == 0) break;
@@ -160,6 +164,7 @@ function process_program($task, $compiler, $debugger, $profiler, $program_id) {
 	$filelist = find_sources($task, $instance);
 	if ($filelist == array()) {
 		// Skip to next program, nothing to do
+		print "JSON query\n";
 		json_query("setProgramStatus", array("program" => $program_id, "buildhost" => json_encode($buildhost_description), "status" => PROGRAM_NO_SOURCES_FOUND), "POST" );
 		if ($conf_verbosity>0) print "No sources found.\n\n";
 		purge_instance($instance);
