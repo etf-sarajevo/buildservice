@@ -159,6 +159,10 @@ function skip_constructor($string, $pos)
 
 			$i = skip_ident_chars($string, $i);
 			$i = skip_whitespace($string, $i);
+			if ($string[$i] == '<') {
+				$i = find_matching($string, $i)+1;
+				$i = skip_whitespace($string, $i);
+			}
 			if ($string[$i] == '(' || $string[$i] == '{') $i = find_matching($string, $i)+1;
 			else {
 				if ($conf_verbosity>1) parser_error("invalid init list format (no brace)", "", $string, $i);
