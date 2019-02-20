@@ -200,6 +200,7 @@ $conf_extensions = array(
 	"C++"  => array( ".cpp", ".h", ".cxx", ".hxx" ),
 	"Java" => array( ".java" ),
 	"Python" => array( ".py" ),
+	"QBasic" => array( ".bas" ),
 );
 
 
