@@ -164,7 +164,6 @@ function process_program($task, $compiler, $debugger, $profiler, $program_id) {
 	$filelist = find_sources($task, $instance);
 	if ($filelist == array()) {
 		// Skip to next program, nothing to do
-		print "JSON query\n";
 		json_query("setProgramStatus", array("program" => $program_id, "buildhost" => json_encode($buildhost_description), "status" => PROGRAM_NO_SOURCES_FOUND), "POST" );
 		if ($conf_verbosity>0) print "No sources found.\n\n";
 		purge_instance($instance);
@@ -366,7 +365,7 @@ function list_tasks() {
 
 function progs_sort_by_name($p1, $p2) { return strcmp($p1['name'], $p2['name']); }
 function list_progs($taskid) {
-	$progs = json_query("getProgList", array("task" => $taskid));
+	$progs = json_query("listPrograms", array("task" => $taskid));
 	print "\nAvailable programs in task:\n";
 	usort($progs, "progs_sort_by_name");
 	foreach ($progs as $prog)
