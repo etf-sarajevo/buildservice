@@ -193,34 +193,42 @@ function do_run($filelist, $exe_file, $params, $compiler, $compiler_options, $in
 	
 	// Always enable coredumps
 	$cmd = "ulimit -c 1000000; $cmd";
-	
-	$process = proc_open($cmd, $descriptorspec, $pipes, $cwd, $env);
-	
 	$run_result = array();
-
-	if (is_resource($process)) {
-		$statusar = proc_get_status($process);
-		$pid = $statusar['pid']+1; // first one is ulimit...
-		print "PID: $pid\n";
-		
-		fwrite($pipes[0], $params['stdin']);
-		fclose($pipes[0]);
-		
-		// stream_get_contents will get stuck until program ends
+	
+	if ($params['use_pipes']) {
+		file_put_contents($stdin_file, $params['stdin'] . "\n");
 		$start_time = time();
-		$stdout = stream_get_contents($pipes[1], $conf_max_program_output+10);
+		$run_result['output'] = `$cmd < $stdin_file`;
+		if (strlen($run_result['output']) > $conf_max_program_output)
+			$run_result['output'] = substr($run_result['output'], 0, $conf_max_program_output);
 		$duration = time() - $start_time;
 		
-		file_put_contents($stdout_file, $stdout);
-		fclose($pipes[1]);
 	} else {
-		if ($conf_verbosity>0) print "Not a resource\n";
-		$run_result['status'] = EXECUTION_FAIL;
-		return $run_result;
+		$process = proc_open($cmd, $descriptorspec, $pipes, $cwd, $env);
+		
+		if (is_resource($process)) {
+			$statusar = proc_get_status($process);
+			$pid = $statusar['pid']+1; // first one is ulimit...
+			print "PID: $pid\n";
+			
+			fwrite($pipes[0], $params['stdin']);
+			fclose($pipes[0]);
+			
+			// stream_get_contents will get stuck until program ends
+			$start_time = time();
+			$stdout = stream_get_contents($pipes[1], $conf_max_program_output+10);
+			$duration = time() - $start_time;
+			
+			//file_put_contents($stdout_file, $stdout);
+			$run_result['output'] = $stdout;
+			fclose($pipes[1]);
+		} else {
+			if ($conf_verbosity>0) print "Not a resource\n";
+			$run_result['status'] = EXECUTION_FAIL;
+			return $run_result;
+		}
 	}
 
-	$run_result = array();
-	$run_result['output'] = file_get_contents($stdout_file, false, NULL, -1, $conf_max_program_output); // TODO why write to file than read from it !?!?
 	$run_result['output'] = clear_unicode($run_result['output']);
 	$run_result['duration'] = $duration;
 	$run_result['status'] = EXECUTION_SUCCESS;
@@ -551,7 +559,7 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	$adjustment_data['test_code_pos']       = $adjustment_data['global_above_pos'] + substr_count($test['global_above_main'], "\n") + 1  /* Added one \n */;
 	// number of lines added to main per language
 	if ($task['language'] == "C") $adjustment_data['test_code_pos'] += 2;
-	if ($task['language'] == "C++") $adjustment_data['test_code_pos'] += 3;
+	if ($task['language'] == "C++") $adjustment_data['test_code_pos'] += 6;
 	if ($task['language'] == "Python") $adjustment_data['test_code_pos'] += 1;
 
 
