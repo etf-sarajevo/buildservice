@@ -89,6 +89,8 @@ function json_request($url, $parameters, $method = "GET")
 
 	$query = http_build_query($parameters);
 	
+	if ($conf_verbosity>2) print "Querying $url?$query...\n";
+	
 	if ($method == "GET") 
 		$http_result = @file_get_contents("$url?$query", false, stream_context_create($disableSslCheck));
 	else {

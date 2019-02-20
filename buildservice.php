@@ -468,6 +468,8 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 		while (array_key_exists($newname, $global_symbols)) $newname = "_$newname";
 		$newname = " $newname\${1}";
 		$main_source_code = preg_replace("/\smain(\W)/", $newname, $main_source_code);
+	} else {
+		$main_source_code = file_get_contents($filelist[0]); // FIXME
 	}
 
 	// Symbol renaming
@@ -508,6 +510,8 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 		$test_code .= "int main() {\ntry {\n std::cout<<\"$start_string\";\n ".$test['code']."\n std::cout<<\"$end_string\";\n } catch (...) {\n std::cout<<\"$except_string\";\n }\nreturn 0;\n}\n";
 	else if ($task['language'] == "Python")
 		$test_code .= "print(\"$start_string\")\n".$test['code']."\nprint(\"$end_string\")\n";
+	else if ($task['language'] == "QBasic")
+		$test_code .= "test" . $test['id'] . ":\nprint \"$start_string\"\n" . $test['code'] . "\nprint\"$end_string\"\nSYSTEM\n";
 	else
 		$test_code = $test['code'];
 
@@ -518,13 +522,17 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	
 	// Construct whole file
 	$main_length = substr_count($main_source_code, "\n");
-	$main_source_code = $includes_code . $test['global_top'] . "\n" . $main_source_code . "\n" . $test['global_above_main'] . "\n" . $test_code . "\n";
+	if ($task['language'] == "QBasic")
+		$main_source_code = "\$CONSOLE\n_DEST _CONSOLE\nGOTO test" . $test['id'] . "\n" . $test['global_top'] . "\nmain:\n" . $main_source_code . "\nRETURN\n" . $test['global_above_main'] . "\n" . $test_code . "\n";
+	else
+		$main_source_code = $includes_code . $test['global_top'] . "\n" . $main_source_code . "\n" . $test['global_above_main'] . "\n" . $test_code . "\n";
 
 	// Choose filename for test
 	$test_filename = "bs_test_".$test['id'];
 	if ($task['language'] == "C") $test_filename .= ".c";
 	if ($task['language'] == "C++") $test_filename .= ".cpp";
 	if ($task['language'] == "Python") $test_filename .= ".py";
+	if ($task['language'] == "QBasic") $test_filename .= ".bas";
 
 	$test_path = instance_path($instance);
 	if ($task['language'] == "C" || $task['language'] == "C++")
@@ -541,7 +549,7 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 		for ($i=0; $i<count($filelist); $i++)
 			if ($filelist[$i] === $global_symbols['main'])
 				$filelist[$i] = $test_filename;
-	} else if ($task['language'] == "Python") {
+	} else if ($task['language'] == "Python" || $task['language'] == "QBasic") {
 		// In python we execute just the test file and it includes everything else
 		$filelist = array($test_filename);
 	} else {
@@ -561,6 +569,7 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	if ($task['language'] == "C") $adjustment_data['test_code_pos'] += 2;
 	if ($task['language'] == "C++") $adjustment_data['test_code_pos'] += 6;
 	if ($task['language'] == "Python") $adjustment_data['test_code_pos'] += 1;
+	if ($task['language'] == "QBasic") $adjustment_data['test_code_pos'] += 4;
 
 
 

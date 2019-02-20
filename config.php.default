@@ -123,6 +123,18 @@ $conf_compilers = array(
 		"version_line" => "COMPILER_PATH --version",
 		"features" => array( "python3" ), // Python version 3 is used
 	),
+
+	// QB64
+	array(
+		"name" => "QB64",
+		"language" => "QBasic",
+		"compiler_path" => "/usr/share/qb64/qb64",
+		"executor_path" => "",
+		"cmd_line" => "COMPILER_PATH -x -o OUTPUT_FILE SOURCE_FILES",
+		"exe_line" => "OUTPUT_FILE",
+		"version_line" => "./qb64 -x /tmp/nonexistant.bas", // hack
+		"features" => array( ),
+	),
 );
 
 

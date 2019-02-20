@@ -1,0 +1,39 @@
+{
+    "id": 5442,
+    "name": "Sample QBasic task",
+    "language": "QBasic",
+    "preferred_compiler": "",
+    "required_compiler": "",
+    "compiler_features": [],
+    "compiler_options": "",
+    "compiler_options_debug": "",
+    "profile": "false",
+    "debug": "true",
+    "test": "true",
+    "compile": "true",
+    "run": "false",
+    "test_specifications": [
+        {
+            "id": 1,
+            "require_symbols": [],
+            "replace_symbols": [],
+            "code": "GOSUB main",
+            "global_above_main": "",
+            "global_top": "",
+            "running_params": {
+                "timeout": "10",
+                "vmem": "1000000",
+                "stdin": "John",
+                "use_pipes": true
+            },
+            "expected": [
+                "Please enter your name: Hello, John"
+            ],
+            "expected_exception": "false",
+            "expected_crash": "false",
+            "ignore_whitespace": "false",
+            "regex": "false",
+            "substring": "false"
+        }
+    ]
+}
