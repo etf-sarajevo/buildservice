@@ -196,8 +196,11 @@ function do_run($filelist, $exe_file, $params, $compiler, $compiler_options, $in
 	// Always enable coredumps
 	$cmd = "ulimit -c 1000000; $cmd";
 	$run_result = array();
+
+	if ($conf_verbosity > 2) print "CMD: $cmd\n";
 	
 	if (array_key_exists('use_pipes', $params) && $params['use_pipes']) {
+		$cmd = "cd $cwd; $cmd";
 		file_put_contents($stdin_file, $params['stdin'] . "\n");
 		$start_time = time();
 		$run_result['output'] = `$cmd < $stdin_file`;
@@ -470,6 +473,15 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 		while (array_key_exists($newname, $global_symbols)) $newname = "_$newname";
 		$newname = " $newname\${1}";
 		$main_source_code = preg_replace("/\smain(\W)/", $newname, $main_source_code);
+	} else if ($task['language'] == "Java"  && array_key_exists('main_class', $test['running_params'])) {
+		$main_filename = instance_path($instance) . "/" . $test['running_params']['main_class'] . ".java";
+		$main_source_code = file_get_contents($main_filename);
+		$orig_main_source_code = $main_source_code;
+
+		// Rename main
+		$newname = "_main";
+		$newname = " $newname\${1}";
+		$main_source_code = preg_replace("/\smain(\W)/", $newname, $main_source_code);
 	} else {
 		$main_source_code = file_get_contents($filelist[0]); // FIXME
 	}
@@ -512,6 +524,8 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 		$test_code .= "int main() {\ntry {\n std::cout<<\"$start_string\";\n ".$test['code']."\n std::cout<<\"$end_string\";\n } catch (...) {\n std::cout<<\"$except_string\";\n }\nreturn 0;\n}\n";
 	else if ($task['language'] == "Python")
 		$test_code .= "print(\"$start_string\")\n".$test['code']."\nprint(\"$end_string\")\n";
+	else if ($task['language'] == "Java")
+		$test_code .= "public static void main(String[] args) {\ntry{\n System.out.println(\"$start_string\");\n " . $test['code'] . "\n System.out.println(\"$end_string\");\n } catch (Exception e) {\n System.out.println(\"$except_string\");\n }\n}\n";
 	// Skip cheat protection for QBasic - it breaks things and its impossible
 	// to cheat in basic in this way anyways...
 	//else if ($task['language'] == "QBasic")
@@ -537,6 +551,11 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	                $main_source_code = str_replace("\nEND", "\nSYSTEM", $main_source_code);
 		else if (strpos($main_source_code, "\rEND"))
 	                $main_source_code = str_replace("\rEND", "\rSYSTEM", $main_source_code);
+	// In Java, main method must be inside class
+	} else if ($task['language'] == "Java") {
+		$pos = strrpos($main_source_code, "}");
+		$main_source_code = substr($main_source_code, 0, $pos);
+		$main_source_code = $includes_code . $test['global_top'] . "\n" . $main_source_code . "\n" . $test['global_above_main'] . "\n" . $test_code . "\n}\n";
 	} else
 		$main_source_code = $includes_code . $test['global_top'] . "\n" . $main_source_code . "\n" . $test['global_above_main'] . "\n" . $test_code . "\n";
 
@@ -554,6 +573,9 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 
 	while (in_array($test_path . "/" . $test_filename, $filelist)) $test_filename = "_".$test_filename;
 	$test_filename = $test_path . "/" . $test_filename;
+
+	// In Java we are not allowed to change the filename
+	if ($task['language'] == "Java") $test_filename = $main_filename;
 	
 	file_put_contents($test_filename, $main_source_code);
 
@@ -581,6 +603,7 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	if ($task['language'] == "C++") $adjustment_data['test_code_pos'] += 6;
 	if ($task['language'] == "Python") $adjustment_data['test_code_pos'] += 1;
 	if ($task['language'] == "QBasic") $adjustment_data['test_code_pos'] += 4;
+	if ($task['language'] == "Java") $adjustment_data['test_code_pos'] += 2;
 
 
 
@@ -590,6 +613,13 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	$test_exe_file = instance_path($instance) . "/bs_test_".$test['id'];
 	$compile_result = do_compile($filelist, $test_exe_file, $compiler, $task['compiler_options_debug'], $instance);
 	$test_result['compile_result'] = $compile_result;
+
+	// In Java, we now must revert old main class sourcecode...
+	if ($task['language'] == "Java") {
+		rename($test_filename, $test_path . "/bs_test_".$test['id'].".java");
+		file_put_contents($test_filename, $orig_main_source_code);
+	}
+	
 
 	if ($compile_result['status'] !== COMPILE_SUCCESS) {
 		$test_result['status'] = TEST_COMPILE_FAILED;
@@ -603,6 +633,22 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 		}
 		return $test_result;
 	}
+
+	// In Java we need to run the main class specifically
+	if ($task['language'] == "Java" && array_key_exists('main_class', $test['running_params'])) {
+		$test_exe_file = $test['running_params']['main_class'];
+		// Files should be in a package directory
+		if (array_key_exists('package', $test['running_params'])) {
+			$test_exe_file = $test['running_params']['package'] . "." . $test['running_params']['main_class'];
+			$packagedir = str_replace(".", "/", $test['running_params']['package']);
+			$inst = instance_path($instance);
+			mkdir($inst . "/" . $packagedir, 0777, true);
+			`cd $inst; mv *.class $packagedir`;
+		}
+		// Can't limit ram in java
+		unset($test['running_params']['vmem']);
+	}
+		
 
 	// Execute test
 	$run_result = do_run($filelist, $test_exe_file, $test['running_params'], $compiler, $task['compiler_options_debug'], $instance);
