@@ -125,6 +125,8 @@ function do_compile($filelist, $exe_file, $compiler, $options, $instance)
 	if (isset($conf_nice))
 		$cmd = "nice -n $conf_nice $cmd";
 
+	if ($conf_verbosity>2) print "CMD: $cmd\n";
+
 	$k = exec($cmd, $output, $return);
 
 	$compile_result['output'] = clear_unicode( join("\n", $output) );
@@ -195,7 +197,7 @@ function do_run($filelist, $exe_file, $params, $compiler, $compiler_options, $in
 	$cmd = "ulimit -c 1000000; $cmd";
 	$run_result = array();
 	
-	if ($params['use_pipes']) {
+	if (array_key_exists('use_pipes', $params) && $params['use_pipes']) {
 		file_put_contents($stdin_file, $params['stdin'] . "\n");
 		$start_time = time();
 		$run_result['output'] = `$cmd < $stdin_file`;
@@ -510,8 +512,10 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 		$test_code .= "int main() {\ntry {\n std::cout<<\"$start_string\";\n ".$test['code']."\n std::cout<<\"$end_string\";\n } catch (...) {\n std::cout<<\"$except_string\";\n }\nreturn 0;\n}\n";
 	else if ($task['language'] == "Python")
 		$test_code .= "print(\"$start_string\")\n".$test['code']."\nprint(\"$end_string\")\n";
-	else if ($task['language'] == "QBasic")
-		$test_code .= "test" . $test['id'] . ":\nprint \"$start_string\"\n" . $test['code'] . "\nprint\"$end_string\"\nSYSTEM\n";
+	// Skip cheat protection for QBasic - it breaks things and its impossible
+	// to cheat in basic in this way anyways...
+	//else if ($task['language'] == "QBasic")
+	//	$test_code .= "test" . $test['id'] . ":\nprint \"$start_string\"\n" . $test['code'] . "\nprint\"$end_string\"\nSYSTEM\n";
 	else
 		$test_code = $test['code'];
 
@@ -522,9 +526,18 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	
 	// Construct whole file
 	$main_length = substr_count($main_source_code, "\n");
-	if ($task['language'] == "QBasic")
-		$main_source_code = "\$CONSOLE\n_DEST _CONSOLE\nGOTO test" . $test['id'] . "\n" . $test['global_top'] . "\nmain:\n" . $main_source_code . "\nRETURN\n" . $test['global_above_main'] . "\n" . $test_code . "\n";
-	else
+	// In QBasic we must wrap the whole program in output redirection
+	if ($task['language'] == "QBasic") {
+		$main_source_code = "\$CONSOLE\n_DEST _CONSOLE\n" . $main_source_code . "\nSYSTEM\n";
+		if (strpos($main_source_code, "END\n"))
+			$main_source_code = str_replace("END\n", "SYSTEM\n", $main_source_code);
+		else if (strpos($main_source_code, "END\r"))
+			$main_source_code = str_replace("END\r", "SYSTEM\r", $main_source_code);
+		else if (strpos($main_source_code, "\nEND"))
+	                $main_source_code = str_replace("\nEND", "\nSYSTEM", $main_source_code);
+		else if (strpos($main_source_code, "\rEND"))
+	                $main_source_code = str_replace("\rEND", "\rSYSTEM", $main_source_code);
+	} else
 		$main_source_code = $includes_code . $test['global_top'] . "\n" . $main_source_code . "\n" . $test['global_above_main'] . "\n" . $test_code . "\n";
 
 	// Choose filename for test
@@ -552,8 +565,6 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	} else if ($task['language'] == "Python" || $task['language'] == "QBasic") {
 		// In python we execute just the test file and it includes everything else
 		$filelist = array($test_filename);
-	} else {
-		array_push($filelist, $test_filename);
 	}
 
 	// Calculate positions of original code and test code inside sources
@@ -598,6 +609,10 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	$test_result['run_result'] = $run_result;
 	$program_output = $run_result['output']; // Shortcut
 
+	// Ignore QB64 crashing
+	if ($task['language'] == "QBasic" && $run_result['status'] === EXECUTION_CRASH)
+		$run_result['status'] = EXECUTION_SUCCESS;
+
 	// Output was too long and it was cut off... let's pretend it finished ok
 	if (strlen($program_output) >= $conf_max_program_output)
 		$program_output .= "\n$end_string\n";
@@ -607,6 +622,7 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 	if ($start_pos !== false) $start_pos += strlen($start_string);
 	$end_pos    = strpos($program_output, $end_string);
 	$except_pos = strpos($program_output, $except_string);
+	if ($task['language'] == "QBasic") { $start_pos = 0; $end_pos = strlen($program_output); }
 
 	// Remove marker strings from output
 	if ($end_pos !== false)
@@ -687,6 +703,13 @@ function do_test($filelist, $global_symbols, $test, $compiler, $debugger, $profi
 			$program_output = preg_replace("/\s+/", "", $program_output);
 			foreach ($test['expected'] as &$ex)
 				$ex = preg_replace("/\s+/", "", $ex);
+		}
+
+		// Remove question marks
+		if ($task['language'] == "QBasic") {
+			$test_result['run_result']['output'] = str_replace("?", "", $test_result['run_result']['output']);
+			$program_output = str_replace("?", "", $program_output);
+			$ex = str_replace("?", "", $ex);
 		}
 
 		// Look for expected outputs in program output
