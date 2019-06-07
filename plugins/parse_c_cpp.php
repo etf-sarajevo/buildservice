@@ -66,9 +66,14 @@ function find_matching($string, $pos)
 			$i = $end;
 		}
 		if ($string[$i] == '"') {
-			$end = strpos($string, '"', $i+1);
+			$end = strpos($string, '"', $i); // Merdović Nejra TP2018/Z4/Z3 521103 1335723
 			// Skip escaped quotes
-			while ($end>1 && $string[$end-1] == "\\") $end = strpos($string, '"', $end+1);
+			if ($end > 1 && $string[$end-1] == "\\") {
+				$bspos = $end-1;
+				// Is number of backslashes odd?
+				while($bspos >= 0 && $string[$bspos] == "\\") $bspos--;
+				if (($bspos-$end) % 2 == 0) $end = strpos($string, '"', $end+1);
+			}
 			if ($end === false) {
 				if ($conf_verbosity>1) parser_error("unclosed string constant", "", $string, $i);
 				break;
@@ -382,7 +387,8 @@ function parse_c_cpp($sourcecode, $language, $file /* Only used for error messag
 					// Find method name (used just for debugging msgs)
 					if ($sourcecode[$i] == "<") $i = find_matching($sourcecode, $i)+1;
 					if ($i !== false && $i < strlen($sourcecode)-1) {
-						if ($sourcecode[$i] == ":") $i += 2;
+						if ($sourcecode[$i] == ":") 
+							$i = skip_whitespace($sourcecode, $i+2); 
 						$ident_begin = $i;
 						if ($sourcecode[$i] == "~") $i++;
 						$i = skip_ident_chars($sourcecode, $i);
